@@ -4,9 +4,9 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || '34.101.154.234',
+  host: process.env.DB_HOST || '34.72.200.235',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'ayo_app_password',
+  password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'ayo_chat_db',
   waitForConnections: true,
   connectionLimit: 10,
