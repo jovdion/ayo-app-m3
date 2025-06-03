@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/message.dart';
-import 'api_config.dart';
+import '../config/api_config.dart';
 import 'auth_service.dart';
 
 class ChatService {
@@ -11,18 +11,23 @@ class ChatService {
 
   final AuthService _authService = AuthService();
 
-  Future<List<Message>> getMessages(String otherUserId) async {
+  Future<List<Message>> getMessages(String userId) async {
     try {
+      final token = _authService.token;
+      if (token == null) {
+        throw Exception('No authentication token');
+      }
+
       final response = await http.get(
-        Uri.parse(
-            '${ApiConfig.baseUrl}${ApiConfig.getMessagesEndpoint}/$otherUserId'),
+        Uri.parse('${ApiConfig.baseUrl}/messages/$userId'),
         headers: {
-          'Authorization': 'Bearer ${_authService.authToken}',
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> messagesData = jsonDecode(response.body);
+        final List<dynamic> messagesData = json.decode(response.body);
         return messagesData.map((data) => Message.fromMap(data)).toList();
       } else {
         throw Exception('Failed to get messages: ${response.body}');
@@ -35,20 +40,25 @@ class ChatService {
 
   Future<Message> sendMessage(String receiverId, String text) async {
     try {
+      final token = _authService.token;
+      if (token == null) {
+        throw Exception('No authentication token');
+      }
+
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.sendMessageEndpoint}'),
+        Uri.parse('${ApiConfig.baseUrl}/messages'),
         headers: {
+          'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${_authService.authToken}',
         },
-        body: jsonEncode({
-          'receiverId': receiverId,
+        body: json.encode({
+          'receiver_id': receiverId,
           'text': text,
         }),
       );
 
       if (response.statusCode == 201) {
-        final messageData = jsonDecode(response.body);
+        final messageData = json.decode(response.body);
         return Message.fromMap(messageData);
       } else {
         throw Exception('Failed to send message: ${response.body}');

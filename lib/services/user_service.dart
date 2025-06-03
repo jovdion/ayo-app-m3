@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
-import 'api_config.dart';
+import '../config/api_config.dart';
 import 'auth_service.dart';
 
 class UserService {
@@ -13,15 +13,21 @@ class UserService {
 
   Future<List<User>> getUsers() async {
     try {
+      final token = _authService.token;
+      if (token == null) {
+        throw Exception('No authentication token');
+      }
+
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.getUsersEndpoint}'),
         headers: {
-          'Authorization': 'Bearer ${_authService.authToken}',
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> usersData = jsonDecode(response.body);
+        final List<dynamic> usersData = json.decode(response.body);
         return usersData.map((data) => User.fromMap(data)).toList();
       } else {
         throw Exception('Failed to get users: ${response.body}');
@@ -34,16 +40,22 @@ class UserService {
 
   Future<User> getUserProfile(String userId) async {
     try {
+      final token = _authService.token;
+      if (token == null) {
+        throw Exception('No authentication token');
+      }
+
       final response = await http.get(
         Uri.parse(
             '${ApiConfig.baseUrl}${ApiConfig.getUserProfileEndpoint}/$userId'),
         headers: {
-          'Authorization': 'Bearer ${_authService.authToken}',
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
       );
 
       if (response.statusCode == 200) {
-        final userData = jsonDecode(response.body);
+        final userData = json.decode(response.body);
         return User.fromMap(userData);
       } else {
         throw Exception('Failed to get user profile: ${response.body}');
@@ -60,6 +72,11 @@ class UserService {
     String? password,
   }) async {
     try {
+      final token = _authService.token;
+      if (token == null) {
+        throw Exception('No authentication token');
+      }
+
       final Map<String, dynamic> body = {
         'username': username,
         'email': email,
@@ -72,22 +89,47 @@ class UserService {
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.updateProfileEndpoint}'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${_authService.authToken}',
+          'Authorization': 'Bearer $token',
         },
-        body: jsonEncode(body),
+        body: json.encode(body),
       );
 
       if (response.statusCode == 200) {
-        final userData = jsonDecode(response.body);
-        final updatedUser = User.fromMap(userData);
-        // Update the current user in AuthService
-        _authService.updateCurrentUser(updatedUser);
-        return updatedUser;
+        final userData = json.decode(response.body);
+        return User.fromMap(userData);
       } else {
         throw Exception('Failed to update profile: ${response.body}');
       }
     } catch (e) {
       print('Error updating profile: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateLocation(double latitude, double longitude) async {
+    try {
+      final token = _authService.token;
+      if (token == null) {
+        throw Exception('No authentication token');
+      }
+
+      final response = await http.put(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.updateLocationEndpoint}'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'latitude': latitude,
+          'longitude': longitude,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update location: ${response.body}');
+      }
+    } catch (e) {
+      print('Error updating location: $e');
       rethrow;
     }
   }

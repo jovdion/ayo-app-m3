@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_compass/flutter_compass.dart';
+import 'dart:math' as math;
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import '../services/chat_service.dart';
@@ -28,10 +30,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _chatService = ChatService();
   final messageController = TextEditingController();
   Position? _currentPosition;
+  double? _heading;
   double? distanceKm;
   User? otherUser;
   List<Message> messages = [];
   bool _isLoading = true;
+  bool _hasCompass = false;
   final List<String> currencies = [
     "IDR",
     "USD",
@@ -49,6 +53,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     super.initState();
     _loadUserProfile();
     _loadMessages();
+    _initializeCompass();
     _getCurrentLocation();
   }
 
@@ -56,6 +61,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void dispose() {
     messageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initializeCompass() async {
+    _hasCompass = await FlutterCompass.events != null;
+
+    if (_hasCompass) {
+      FlutterCompass.events!.listen((event) {
+        setState(() {
+          _heading = event.heading;
+        });
+      });
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -85,10 +102,54 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _getCurrentLocation() async {
     try {
       final position = await Geolocator.getCurrentPosition();
-      setState(() => _currentPosition = position);
+      setState(() {
+        _currentPosition = position;
+        _updateDistance();
+      });
     } catch (e) {
       print('Error getting location: $e');
     }
+  }
+
+  void _updateDistance() {
+    if (_currentPosition != null &&
+        otherUser?.latitude != null &&
+        otherUser?.longitude != null) {
+      final distance = Geolocator.distanceBetween(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        otherUser!.latitude!,
+        otherUser!.longitude!,
+      );
+      setState(() {
+        distanceKm = distance / 1000;
+      });
+    }
+  }
+
+  double _calculateBearing() {
+    if (_currentPosition == null ||
+        otherUser?.latitude == null ||
+        otherUser?.longitude == null) {
+      return 0;
+    }
+
+    final lat1 = _currentPosition!.latitude * math.pi / 180;
+    final lon1 = _currentPosition!.longitude * math.pi / 180;
+    final lat2 = otherUser!.latitude! * math.pi / 180;
+    final lon2 = otherUser!.longitude! * math.pi / 180;
+
+    final dLon = lon2 - lon1;
+
+    final y = math.sin(dLon) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
+
+    var bearing = math.atan2(y, x);
+    bearing = bearing * 180 / math.pi;
+    bearing = (bearing + 360) % 360;
+
+    return bearing;
   }
 
   String formatTimestamp(String timestamp) {
@@ -140,6 +201,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ],
               ),
         elevation: 0,
+        actions: [
+          if (_hasCompass && _heading != null && distanceKm != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Transform.rotate(
+                    angle: ((_heading! - _calculateBearing()) * math.pi / 180),
+                    child: const Icon(Icons.navigation),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${distanceKm!.toStringAsFixed(1)} km',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

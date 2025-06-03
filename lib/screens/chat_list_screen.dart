@@ -4,9 +4,8 @@ import 'package:geocoding/geocoding.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import '../models/user.dart';
-import '../data/dummy_users.dart';
-import '../data/dummy_chats.dart';
 import 'chat_detail_screen.dart';
+import 'compass_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 
@@ -21,7 +20,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
   final _authService = AuthService();
   final _userService = UserService();
   Position? _currentPosition;
-  Map<String, double> _distances = {};
   String? _currentUserAddress;
   int _selectedIndex = 0;
   bool _isLoading = true;
@@ -102,11 +100,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Future<void> _getCurrentLocation() async {
     try {
       final position = await Geolocator.getCurrentPosition();
-      setState(() {
-        _currentPosition = position;
-        _updateDistances();
-      });
+      setState(() => _currentPosition = position);
       await _updateCurrentUserAddress();
+      await _updateUserLocation(position);
       setState(() {
         _isLoading = false;
       });
@@ -147,13 +143,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
     }
   }
 
-  void _updateDistances() {
-    if (_currentPosition == null) return;
-
-    for (var user in _users) {
-      // Note: In a real app, you would store user locations in the database
-      // For now, we'll use dummy coordinates or skip distance calculation
-      _distances[user.id] = 0.0; // Placeholder for actual distance calculation
+  Future<void> _updateUserLocation(Position position) async {
+    try {
+      await _userService.updateLocation(
+        position.latitude,
+        position.longitude,
+      );
+    } catch (e) {
+      print('Error updating user location: $e');
     }
   }
 
@@ -180,24 +177,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
         .toList();
   }
 
-  String _getLastMessage(String userId) {
-    final currentUser = _authService.currentUser;
-    if (currentUser == null) return '';
-
-    final lastMessage = dummyChats
-        .where((msg) =>
-            (msg['senderId'] == userId &&
-                msg['receiverId'] == currentUser.id) ||
-            (msg['senderId'] == currentUser.id && msg['receiverId'] == userId))
-        .toList()
-      ..sort((a, b) => DateTime.parse(b['timestamp'])
-          .compareTo(DateTime.parse(a['timestamp'])));
-
-    return lastMessage.isNotEmpty
-        ? lastMessage.first['text']
-        : 'No messages yet';
-  }
-
   void _onItemTapped(int index) {
     if (index == _selectedIndex) return;
 
@@ -211,6 +190,28 @@ class _ChatListScreenState extends State<ChatListScreen> {
         MaterialPageRoute(builder: (_) => const ProfileScreen()),
       );
     }
+  }
+
+  void _openCompass(User user) {
+    if (user.latitude == null || user.longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User location is not available'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CompassScreen(
+          userName: user.username,
+          targetLatitude: user.latitude!,
+          targetLongitude: user.longitude!,
+        ),
+      ),
+    );
   }
 
   @override
@@ -393,7 +394,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 itemCount: users.length,
                                 itemBuilder: (context, index) {
                                   final user = users[index];
-                                  final distance = _distances[user.id];
 
                                   return Card(
                                     margin: const EdgeInsets.symmetric(
@@ -411,44 +411,17 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                           ),
                                         ),
                                       ),
-                                      title: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              user.username,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                          if (distance != null)
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 2,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue
-                                                    .withOpacity(0.1),
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                '${distance.toStringAsFixed(1)} km',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.blue[700],
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
+                                      title: Text(
+                                        user.username,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                      subtitle: Text(
-                                        _getLastMessage(user.id),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                      subtitle: Text(user.email),
+                                      trailing: IconButton(
+                                        icon: const Icon(Icons.explore),
+                                        onPressed: () => _openCompass(user),
+                                        tooltip: 'Open compass',
                                       ),
                                       onTap: () {
                                         Navigator.push(
