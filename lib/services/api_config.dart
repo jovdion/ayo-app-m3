@@ -1,0 +1,12 @@
+class ApiConfig {
+  static const String baseUrl =
+      'https://ayo-app-backend-913201672104.asia-southeast2.run.app';
+
+  // Auth endpoints
+  static const String loginEndpoint = '/api/auth/login';
+  static const String registerEndpoint = '/api/auth/register';
+
+  // Chat endpoints
+  static const String sendMessageEndpoint = '/api/chat/send';
+  static const String getMessagesEndpoint = '/api/chat/messages';
+}

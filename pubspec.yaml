@@ -36,6 +36,7 @@ dependencies:
    # Geolokasi (jarak, lokasi saat ini)
   geolocator: ^10.1.0
   geocoding: ^2.1.1
+  http: ^1.1.0
 
   # Untuk light sensor (Android only)
   light: ^4.1.0
