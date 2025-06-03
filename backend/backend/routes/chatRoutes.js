@@ -59,14 +59,37 @@ router.get('/messages/:otherUserId', verifyToken, async (req, res) => {
 // Send a message
 router.post('/send', verifyToken, async (req, res) => {
   try {
+    console.log('Received request body:', req.body);
     const { receiverId, content } = req.body;
-    console.log('Sending message:', { senderId: req.userId, receiverId, content });
-
-    if (!content || !receiverId) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    
+    // Detailed validation logging
+    console.log('Validation check:');
+    console.log('receiverId:', receiverId, typeof receiverId);
+    console.log('content:', content, typeof content);
+    
+    if (!content) {
+      console.log('Content is missing or empty');
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        detail: 'Content is required' 
+      });
+    }
+    
+    if (!receiverId) {
+      console.log('ReceiverId is missing or empty');
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        detail: 'ReceiverId is required'
+      });
     }
 
     const timestamp = new Date().toISOString();
+    console.log('Inserting message with values:', {
+      senderId: req.userId,
+      receiverId,
+      content,
+      timestamp
+    });
 
     const [result] = await db.execute(
       'INSERT INTO messages (sender_id, receiver_id, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
@@ -82,6 +105,7 @@ router.post('/send', verifyToken, async (req, res) => {
       updatedAt: timestamp,
     };
 
+    console.log('Message saved successfully:', message);
     res.status(201).json(message);
   } catch (error) {
     console.error('Error sending message:', error);

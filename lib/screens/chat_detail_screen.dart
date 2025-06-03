@@ -175,8 +175,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (text.trim().isEmpty) return;
 
     try {
+      print('Attempting to send message:');
+      print('Receiver ID: ${widget.userId}');
+      print('Message content: ${text.trim()}');
+
       final message =
           await _chatService.sendMessage(widget.userId, text.trim());
+
+      print('Message sent successfully:');
+      print('Message ID: ${message.id}');
+      print('Content: ${message.content}');
+
       setState(() {
         messages.add(message);
         messageController.clear();
