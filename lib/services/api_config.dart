@@ -9,4 +9,8 @@ class ApiConfig {
   // Chat endpoints
   static const String sendMessageEndpoint = '/api/chat/send';
   static const String getMessagesEndpoint = '/api/chat/messages';
+
+  // User endpoints
+  static const String getUsersEndpoint = '/api/users';
+  static const String getUserProfileEndpoint = '/api/users/profile';
 }

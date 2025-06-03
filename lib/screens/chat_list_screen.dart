@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
+import '../models/user.dart';
 import '../data/dummy_users.dart';
 import '../data/dummy_chats.dart';
 import 'chat_detail_screen.dart';
@@ -17,6 +19,7 @@ class ChatListScreen extends StatefulWidget {
 
 class _ChatListScreenState extends State<ChatListScreen> {
   final _authService = AuthService();
+  final _userService = UserService();
   Position? _currentPosition;
   Map<String, double> _distances = {};
   String? _currentUserAddress;
@@ -24,12 +27,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
   bool _isLoading = true;
   String? _locationError;
   String _searchQuery = '';
+  List<User> _users = [];
   TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _checkAuth();
+    _loadUsers();
     _requestLocationPermission();
   }
 
@@ -145,34 +150,34 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void _updateDistances() {
     if (_currentPosition == null) return;
 
-    for (var user in dummyUsers) {
-      final distance = Geolocator.distanceBetween(
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
-        user['latitude'],
-        user['longitude'],
-      );
-      _distances[user['id']] = distance / 1000; // Convert to km
+    for (var user in _users) {
+      // Note: In a real app, you would store user locations in the database
+      // For now, we'll use dummy coordinates or skip distance calculation
+      _distances[user.id] = 0.0; // Placeholder for actual distance calculation
     }
   }
 
-  List<Map<String, dynamic>> _getUsers() {
-    final currentUser = _authService.currentUser;
-    if (currentUser == null) return [];
-
-    return dummyUsers
-        .where((user) =>
-            user['id'] != currentUser.id &&
-            (user['username']
-                    .toLowerCase()
-                    .contains(_searchQuery.toLowerCase()) ||
-                _searchQuery.isEmpty))
-        .toList()
-      ..sort((a, b) {
-        final distA = _distances[a['id']] ?? double.infinity;
-        final distB = _distances[b['id']] ?? double.infinity;
-        return distA.compareTo(distB);
+  Future<void> _loadUsers() async {
+    try {
+      final users = await _userService.getUsers();
+      setState(() {
+        _users = users
+            .where((user) => user.id != _authService.currentUser?.id)
+            .toList();
       });
+    } catch (e) {
+      print('Error loading users: $e');
+      // Show error message to user if needed
+    }
+  }
+
+  List<User> _getFilteredUsers() {
+    if (_searchQuery.isEmpty) return _users;
+
+    return _users
+        .where((user) =>
+            user.username.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
   }
 
   String _getLastMessage(String userId) {
@@ -218,7 +223,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       );
     }
 
-    final users = _getUsers();
+    final users = _getFilteredUsers();
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -388,7 +393,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 itemCount: users.length,
                                 itemBuilder: (context, index) {
                                   final user = users[index];
-                                  final distance = _distances[user['id']];
+                                  final distance = _distances[user.id];
 
                                   return Card(
                                     margin: const EdgeInsets.symmetric(
@@ -399,7 +404,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                       leading: CircleAvatar(
                                         backgroundColor: Colors.blue.shade100,
                                         child: Text(
-                                          user['username'][0].toUpperCase(),
+                                          user.username[0].toUpperCase(),
                                           style: const TextStyle(
                                             color: Colors.blue,
                                             fontWeight: FontWeight.bold,
@@ -410,7 +415,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              user['username'],
+                                              user.username,
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -441,7 +446,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         ],
                                       ),
                                       subtitle: Text(
-                                        _getLastMessage(user['id']),
+                                        _getLastMessage(user.id),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -450,7 +455,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (_) => ChatDetailScreen(
-                                                user: user['username']),
+                                                user: user.username),
                                           ),
                                         );
                                       },

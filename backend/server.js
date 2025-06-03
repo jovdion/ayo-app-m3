@@ -2,6 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const chatRoutes = require('./routes/chatRoutes');
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
 const db = require('./config/database');
 
 dotenv.config();
@@ -47,6 +48,7 @@ app.get('/api/health', async (req, res) => {
 // Routes
 app.use('/api/chat', chatRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
