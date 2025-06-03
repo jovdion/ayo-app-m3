@@ -59,10 +59,10 @@ router.get('/messages/:otherUserId', verifyToken, async (req, res) => {
 // Send a message
 router.post('/send', verifyToken, async (req, res) => {
   try {
-    const { receiverId, text } = req.body;
-    console.log('Sending message:', { senderId: req.userId, receiverId, content: text });
+    const { receiverId, content } = req.body;
+    console.log('Sending message:', { senderId: req.userId, receiverId, content });
 
-    if (!text || !receiverId) {
+    if (!content || !receiverId) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
@@ -70,14 +70,14 @@ router.post('/send', verifyToken, async (req, res) => {
 
     const [result] = await db.execute(
       'INSERT INTO messages (sender_id, receiver_id, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, receiverId, text, timestamp, timestamp]
+      [req.userId, receiverId, content, timestamp, timestamp]
     );
 
     const message = {
       id: result.insertId.toString(),
       senderId: req.userId.toString(),
       receiverId: receiverId.toString(),
-      content: text,
+      content: content,
       createdAt: timestamp,
       updatedAt: timestamp,
     };

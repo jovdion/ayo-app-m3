@@ -66,7 +66,7 @@ class ChatService {
         },
         body: json.encode({
           'receiverId': receiverId,
-          'text': content,
+          'content': content,
         }),
       );
 
