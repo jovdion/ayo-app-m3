@@ -76,6 +76,10 @@ class AuthService {
     }
   }
 
+  void updateCurrentUser(User user) {
+    _currentUser = user;
+  }
+
   Future<void> logout() async {
     _currentUser = null;
     _authToken = null;

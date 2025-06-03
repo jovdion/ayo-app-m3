@@ -455,7 +455,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (_) => ChatDetailScreen(
-                                                user: user.username),
+                                              username: user.username,
+                                              userId: user.id,
+                                            ),
                                           ),
                                         );
                                       },

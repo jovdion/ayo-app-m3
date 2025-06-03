@@ -1,41 +1,121 @@
-Map<String, double> exchangeRates = {
-  "USD": 1.0,
-  "IDR": 15000.0,
-  "EUR": 0.9,
-  "GBP": 0.8,
-  "JPY": 110.0,
-  "AUD": 1.5,
-  "KRW": 1300.0,
-};
+class CurrencyHelper {
+  static final RegExp currencyPattern = RegExp(
+    r'(?:(?:Rp|USD|EUR|GBP|JPY|AUD|KRW|SGD|\$|€|£|¥|₩|S\$)[,.\s]*[0-9]+(?:[,.][0-9]+)*)|(?:[0-9]+(?:[,.][0-9]+)*(?:\s*(?:dollars?|euros?|pounds?|yen|won|rupiah)))',
+    caseSensitive: false,
+  );
 
-List<Map<String, dynamic>> extractCurrenciesFromText(String text) {
-  final matches = RegExp(r"(\\$|Rp|€|£|¥|₩|AUD)?\s?([0-9.,]+)").allMatches(text);
-  return matches.map((m) {
-    final symbol = m.group(1) ?? '';
-    final rawAmount = m.group(2) ?? '0';
-    final cleaned = rawAmount.replaceAll(RegExp(r'[.,]'), '');
-    double amount = double.tryParse(cleaned) ?? 0;
+  static bool hasCurrency(String text) {
+    return currencyPattern.hasMatch(text);
+  }
 
-    String currency = "USD";
-    if (symbol.contains("Rp")) {
-      currency = "IDR";
-    } else if (symbol.contains("\$")) currency = "USD";
-    else if (symbol.contains("€")) currency = "EUR";
-    else if (symbol.contains("£")) currency = "GBP";
-    else if (symbol.contains("¥")) currency = "JPY";
-    else if (symbol.contains("₩")) currency = "KRW";
-    else if (symbol.contains("AUD")) currency = "AUD";
+  static List<Map<String, dynamic>> extractCurrenciesFromText(String text) {
+    final matches = currencyPattern.allMatches(text);
+    final results = <Map<String, dynamic>>[];
 
-    return {"currency": currency, "amount": amount};
-  }).toList();
-}
+    for (final match in matches) {
+      final value = match.group(0)!.toLowerCase();
+      double amount = 0;
+      String currency = 'USD';
 
-double convertCurrency(double amount, String from, String to) {
-  if (!exchangeRates.containsKey(from) || !exchangeRates.containsKey(to)) return amount;
-  double usd = amount / exchangeRates[from]!;
-  return usd * exchangeRates[to]!;
-}
+      // Extract numeric value and currency
+      if (value.contains('rp') || value.contains('rupiah')) {
+        amount = _extractNumber(value);
+        currency = 'IDR';
+      } else if (value.contains(r'\$') || value.contains('dollar')) {
+        amount = _extractNumber(value);
+        currency = 'USD';
+      } else if (value.contains('€') || value.contains('euro')) {
+        amount = _extractNumber(value);
+        currency = 'EUR';
+      } else if (value.contains('£') || value.contains('pound')) {
+        amount = _extractNumber(value);
+        currency = 'GBP';
+      } else if (value.contains('¥') || value.contains('yen')) {
+        amount = _extractNumber(value);
+        currency = 'JPY';
+      } else if (value.contains('₩') || value.contains('won')) {
+        amount = _extractNumber(value);
+        currency = 'KRW';
+      } else if (value.contains('aud')) {
+        amount = _extractNumber(value);
+        currency = 'AUD';
+      } else if (value.contains('sgd') || value.contains('s\$')) {
+        amount = _extractNumber(value);
+        currency = 'SGD';
+      }
 
-String formatCurrency(double amount, String currency) {
-  return "$currency ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => ".")}";
+      results.add({
+        'amount': amount,
+        'currency': currency,
+      });
+    }
+
+    return results;
+  }
+
+  static double _extractNumber(String value) {
+    final numericPattern = RegExp(r'[0-9]+(?:[,.][0-9]+)*');
+    final match = numericPattern.firstMatch(value);
+    if (match == null) return 0;
+
+    String numStr = match.group(0)!.replaceAll(',', '');
+    return double.tryParse(numStr) ?? 0;
+  }
+
+  static double convertCurrency(
+      double amount, String fromCurrency, String toCurrency) {
+    // Exchange rates (as of a recent date)
+    final rates = {
+      'USD': 1.0,
+      'EUR': 0.92,
+      'GBP': 0.79,
+      'JPY': 149.50,
+      'AUD': 1.52,
+      'KRW': 1331.24,
+      'SGD': 1.34,
+      'IDR': 15747.35,
+    };
+
+    // Convert to USD first
+    double usdAmount = amount / (rates[fromCurrency] ?? 1.0);
+    // Then convert to target currency
+    return usdAmount * (rates[toCurrency] ?? 1.0);
+  }
+
+  static String formatCurrency(double amount, String currency) {
+    String symbol = '';
+    int decimals = 2;
+
+    switch (currency) {
+      case 'USD':
+        symbol = '\$';
+        break;
+      case 'EUR':
+        symbol = '€';
+        break;
+      case 'GBP':
+        symbol = '£';
+        break;
+      case 'JPY':
+        symbol = '¥';
+        decimals = 0;
+        break;
+      case 'AUD':
+        symbol = 'A\$';
+        break;
+      case 'KRW':
+        symbol = '₩';
+        decimals = 0;
+        break;
+      case 'SGD':
+        symbol = 'S\$';
+        break;
+      case 'IDR':
+        symbol = 'Rp';
+        decimals = 0;
+        break;
+    }
+
+    return '$symbol${amount.toStringAsFixed(decimals)}';
+  }
 }

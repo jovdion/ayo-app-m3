@@ -13,4 +13,5 @@ class ApiConfig {
   // User endpoints
   static const String getUsersEndpoint = '/api/users';
   static const String getUserProfileEndpoint = '/api/users/profile';
+  static const String updateProfileEndpoint = '/api/users/profile';
 }
