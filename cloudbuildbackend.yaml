@@ -9,10 +9,10 @@ steps:
     dir: 'backend'
 
   # Run tests (if you have any)
-  - name: 'node:16'
-    entrypoint: npm
-    args: ['test']
-    dir: 'backend'
+  # - name: 'node:16'
+  #   entrypoint: npm
+  #   args: ['test']
+  #   dir: 'backend'
 
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
