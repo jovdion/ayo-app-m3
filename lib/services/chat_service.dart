@@ -11,41 +11,51 @@ class ChatService {
 
   final AuthService _authService = AuthService();
 
-  Future<Message> sendMessage(String receiverId, String content) async {
-    final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.sendMessageEndpoint}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${_authService.authToken}',
-      },
-      body: jsonEncode({
-        'receiverId': receiverId,
-        'content': content,
-      }),
-    );
+  Future<List<Message>> getMessages(String otherUserId) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+            '${ApiConfig.baseUrl}${ApiConfig.getMessagesEndpoint}/$otherUserId'),
+        headers: {
+          'Authorization': 'Bearer ${_authService.authToken}',
+        },
+      );
 
-    if (response.statusCode == 201) {
-      final messageData = jsonDecode(response.body);
-      return Message.fromMap(messageData);
-    } else {
-      throw Exception('Failed to send message: ${response.body}');
+      if (response.statusCode == 200) {
+        final List<dynamic> messagesData = jsonDecode(response.body);
+        return messagesData.map((data) => Message.fromMap(data)).toList();
+      } else {
+        throw Exception('Failed to get messages: ${response.body}');
+      }
+    } catch (e) {
+      print('Error getting messages: $e');
+      rethrow;
     }
   }
 
-  Future<List<Message>> getMessages(String otherUserId) async {
-    final response = await http.get(
-      Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.getMessagesEndpoint}/$otherUserId'),
-      headers: {
-        'Authorization': 'Bearer ${_authService.authToken}',
-      },
-    );
+  Future<Message> sendMessage(String receiverId, String text) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.sendMessageEndpoint}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${_authService.authToken}',
+        },
+        body: jsonEncode({
+          'receiverId': receiverId,
+          'text': text,
+        }),
+      );
 
-    if (response.statusCode == 200) {
-      final List<dynamic> messagesData = jsonDecode(response.body);
-      return messagesData.map((data) => Message.fromMap(data)).toList();
-    } else {
-      throw Exception('Failed to get messages: ${response.body}');
+      if (response.statusCode == 201) {
+        final messageData = jsonDecode(response.body);
+        return Message.fromMap(messageData);
+      } else {
+        throw Exception('Failed to send message: ${response.body}');
+      }
+    } catch (e) {
+      print('Error sending message: $e');
+      rethrow;
     }
   }
 }

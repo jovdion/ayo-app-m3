@@ -3,45 +3,91 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const db = require('../config/database');
 const firebase = require('../config/firebase');
+const { v4: uuidv4 } = require('uuid');
+const jwt = require('jsonwebtoken');
 
-// Send message
-router.post('/send', auth, async (req, res) => {
+// Middleware to verify JWT token
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
+
+  const token = authHeader.split(' ')[1];
   try {
-    const { receiverId, message } = req.body;
-    const senderId = req.user.id;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'ayo_app_secret_key_2024');
+    req.userId = decoded.id;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+};
 
-    // Store message in MySQL
-    const [result] = await db.execute(
-      'INSERT INTO messages (sender_id, receiver_id, message, created_at) VALUES (?, ?, ?, NOW())',
-      [senderId, receiverId, message]
+// Get messages between two users
+router.get('/messages/:otherUserId', verifyToken, async (req, res) => {
+  try {
+    console.log('Getting messages between users:', req.userId, req.params.otherUserId);
+    
+    const [messages] = await db.execute(
+      `SELECT * FROM messages 
+       WHERE (sender_id = ? AND receiver_id = ?) 
+       OR (sender_id = ? AND receiver_id = ?)
+       ORDER BY timestamp ASC`,
+      [req.userId, req.params.otherUserId, req.params.otherUserId, req.userId]
     );
+    
+    // Transform the messages to match the client model
+    const transformedMessages = messages.map(msg => ({
+      id: msg.id,
+      senderId: msg.sender_id,
+      receiverId: msg.receiver_id,
+      text: msg.text,
+      timestamp: msg.timestamp,
+    }));
+    
+    res.json(transformedMessages);
+  } catch (error) {
+    console.error('Error getting messages:', error);
+    res.status(500).json({ 
+      message: 'Error getting messages',
+      error: error.message 
+    });
+  }
+});
 
-    // Get receiver's FCM token from database
-    const [rows] = await db.execute(
-      'SELECT fcm_token FROM users WHERE id = ?',
-      [receiverId]
-    );
+// Send a message
+router.post('/send', verifyToken, async (req, res) => {
+  try {
+    const { receiverId, text } = req.body;
+    console.log('Sending message:', { senderId: req.userId, receiverId, text });
 
-    if (rows.length > 0 && rows[0].fcm_token) {
-      // Send push notification
-      await firebase.sendNotification(
-        rows[0].fcm_token,
-        'New Message',
-        message,
-        {
-          messageId: result.insertId.toString(),
-          senderId: senderId.toString(),
-        }
-      );
+    if (!text || !receiverId) {
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    res.status(201).json({
-      success: true,
-      messageId: result.insertId
-    });
+    const messageId = uuidv4();
+    const timestamp = new Date().toISOString();
+
+    await db.execute(
+      'INSERT INTO messages (id, sender_id, receiver_id, text, timestamp) VALUES (?, ?, ?, ?, ?)',
+      [messageId, req.userId, receiverId, text, timestamp]
+    );
+
+    const message = {
+      id: messageId,
+      senderId: req.userId,
+      receiverId,
+      text,
+      timestamp,
+    };
+
+    res.status(201).json(message);
   } catch (error) {
     console.error('Error sending message:', error);
-    res.status(500).json({ message: 'Error sending message' });
+    res.status(500).json({ 
+      message: 'Error sending message',
+      error: error.message 
+    });
   }
 });
 

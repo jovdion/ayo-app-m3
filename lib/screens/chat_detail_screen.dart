@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
+import '../services/chat_service.dart';
 import '../models/user.dart';
+import '../models/message.dart';
 import '../utils/time_helper.dart';
 import '../utils/currency_helper.dart';
 
@@ -23,11 +25,12 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _authService = AuthService();
   final _userService = UserService();
+  final _chatService = ChatService();
   final messageController = TextEditingController();
   Position? _currentPosition;
   double? distanceKm;
   User? otherUser;
-  List<Map<String, dynamic>> messages = [];
+  List<Message> messages = [];
   bool _isLoading = true;
   final List<String> currencies = [
     "IDR",
@@ -45,6 +48,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadMessages();
     _getCurrentLocation();
   }
 
@@ -59,10 +63,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       final user = await _userService.getUserProfile(widget.userId);
       setState(() {
         otherUser = user;
-        _isLoading = false;
       });
     } catch (e) {
       print('Error loading user profile: $e');
+    }
+  }
+
+  Future<void> _loadMessages() async {
+    try {
+      final loadedMessages = await _chatService.getMessages(widget.userId);
+      setState(() {
+        messages = loadedMessages;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading messages: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -77,26 +92,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   String formatTimestamp(String timestamp) {
-    return TimeHelper.formatMessageTime(
-        timestamp, 0); // Using default timezone for now
+    return TimeHelper.formatMessageTime(timestamp, 0);
   }
 
-  void sendMessage(String text) {
+  Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
-    final now = DateTime.now().toIso8601String();
-    final currentUser = _authService.currentUser;
-    if (currentUser == null) return;
 
-    setState(() {
-      messages.add({
-        "id": "m${messages.length + 1}",
-        "senderId": currentUser.id,
-        "receiverId": widget.userId,
-        "text": text.trim(),
-        "timestamp": now,
+    try {
+      final message =
+          await _chatService.sendMessage(widget.userId, text.trim());
+      setState(() {
+        messages.add(message);
+        messageController.clear();
       });
-      messageController.clear();
-    });
+    } catch (e) {
+      print('Error sending message: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send message: $e')),
+      );
+    }
   }
 
   @override
@@ -150,9 +164,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             itemCount: messages.length,
                             itemBuilder: (context, index) {
                               final msg = messages[index];
-                              final isMe = msg['senderId'] == currentUser.id;
+                              final isMe = msg.senderId == currentUser.id;
                               final hasCurrencyInMessage =
-                                  CurrencyHelper.hasCurrency(msg['text']);
+                                  CurrencyHelper.hasCurrency(msg.text);
 
                               return Container(
                                 margin: EdgeInsets.only(
@@ -195,7 +209,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                           : CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          msg['text'],
+                                          msg.text,
                                           style: TextStyle(
                                             color: isMe
                                                 ? Colors.black87
@@ -204,7 +218,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          formatTimestamp(msg['timestamp']),
+                                          formatTimestamp(msg.timestamp),
                                           style: TextStyle(
                                             fontSize: 10,
                                             color: isMe
@@ -300,7 +314,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                     final currencies =
                                                         CurrencyHelper
                                                             .extractCurrenciesFromText(
-                                                                msg['text']);
+                                                                msg.text);
                                                     if (currencies.isEmpty)
                                                       return const SizedBox();
 

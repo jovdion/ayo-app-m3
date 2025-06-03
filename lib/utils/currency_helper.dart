@@ -21,7 +21,7 @@ class CurrencyHelper {
       if (value.contains('rp') || value.contains('rupiah')) {
         amount = _extractNumber(value);
         currency = 'IDR';
-      } else if (value.contains(r'\$') || value.contains('dollar')) {
+      } else if (value.contains('\$') || value.contains('dollar')) {
         amount = _extractNumber(value);
         currency = 'USD';
       } else if (value.contains('€') || value.contains('euro')) {
@@ -44,10 +44,12 @@ class CurrencyHelper {
         currency = 'SGD';
       }
 
-      results.add({
-        'amount': amount,
-        'currency': currency,
-      });
+      if (amount > 0) {
+        results.add({
+          'amount': amount,
+          'currency': currency,
+        });
+      }
     }
 
     return results;
