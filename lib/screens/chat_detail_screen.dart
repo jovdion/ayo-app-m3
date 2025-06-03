@@ -9,6 +9,8 @@ import '../models/user.dart';
 import '../models/message.dart';
 import '../utils/time_helper.dart';
 import '../utils/currency_helper.dart';
+import 'package:intl/intl.dart';
+import 'dart:async';
 
 class ChatDetailScreen extends StatefulWidget {
   final String username;
@@ -36,6 +38,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   List<Message> messages = [];
   bool _isLoading = true;
   bool _hasCompass = false;
+  StreamSubscription<CompassEvent>? _compassSubscription;
   final List<String> currencies = [
     "IDR",
     "USD",
@@ -60,6 +63,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   void dispose() {
     messageController.dispose();
+    _compassSubscription?.cancel();
     super.dispose();
   }
 
@@ -67,10 +71,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _hasCompass = await FlutterCompass.events != null;
 
     if (_hasCompass) {
-      FlutterCompass.events!.listen((event) {
-        setState(() {
-          _heading = event.heading;
-        });
+      _compassSubscription = FlutterCompass.events!.listen((event) {
+        if (mounted) {
+          setState(() {
+            _heading = event.heading;
+          });
+        }
       });
     }
   }
@@ -152,8 +158,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return bearing;
   }
 
-  String formatTimestamp(String timestamp) {
-    return TimeHelper.formatMessageTime(timestamp, 0);
+  String formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inDays == 0) {
+      return DateFormat('HH:mm').format(timestamp);
+    } else if (difference.inDays == 1) {
+      return 'Yesterday ${DateFormat('HH:mm').format(timestamp)}';
+    } else {
+      return DateFormat('dd/MM/yy HH:mm').format(timestamp);
+    }
   }
 
   Future<void> sendMessage(String text) async {
@@ -246,7 +261,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                               final msg = messages[index];
                               final isMe = msg.senderId == currentUser.id;
                               final hasCurrencyInMessage =
-                                  CurrencyHelper.hasCurrency(msg.text);
+                                  CurrencyHelper.hasCurrency(msg.content);
 
                               return Container(
                                 margin: EdgeInsets.only(
@@ -289,7 +304,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                           : CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          msg.text,
+                                          msg.content,
                                           style: TextStyle(
                                             color: isMe
                                                 ? Colors.black87
@@ -298,12 +313,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          formatTimestamp(msg.timestamp),
+                                          formatTimestamp(msg.createdAt),
                                           style: TextStyle(
                                             fontSize: 10,
                                             color: isMe
-                                                ? Colors.black54
-                                                : Colors.black45,
+                                                ? Colors.white.withOpacity(0.7)
+                                                : Colors.black54,
                                           ),
                                         ),
                                         if (hasCurrencyInMessage) ...[
@@ -394,7 +409,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                     final currencies =
                                                         CurrencyHelper
                                                             .extractCurrenciesFromText(
-                                                                msg.text);
+                                                                msg.content);
                                                     if (currencies.isEmpty)
                                                       return const SizedBox();
 

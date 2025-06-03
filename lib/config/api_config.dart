@@ -2,11 +2,20 @@ class ApiConfig {
   // Production backend URL
   static const String baseUrl =
       'https://ayo-app-backend-913201672104.asia-southeast2.run.app';
-  static const String loginEndpoint = '/auth/login';
-  static const String registerEndpoint = '/auth/register';
-  static const String updateLocationEndpoint = '/users/location';
-  static const String getUsersEndpoint = '/users';
-  static const String getUserProfileEndpoint = '/users';
-  static const String updateProfileEndpoint = '/users/profile';
-  static const String messagesEndpoint = '/messages';
+  // Auth endpoints
+  static const String loginEndpoint = '/api/auth/login';
+  static const String registerEndpoint = '/api/auth/register';
+  // User endpoints
+  static const String updateLocationEndpoint = '/api/users/location';
+  static const String getUsersEndpoint = '/api/users';
+  static const String getUserProfileEndpoint = '/api/users/{id}';
+  static const String updateProfileEndpoint = '/api/users/{id}';
+  // Message endpoints
+  static const String sendMessageEndpoint = '/api/chat/send';
+  static const String getMessagesEndpoint = '/api/chat/messages';
+
+  // Helper method to replace ID parameter
+  static String getEndpointWithId(String endpoint, String id) {
+    return endpoint.replaceAll('{id}', id);
+  }
 }

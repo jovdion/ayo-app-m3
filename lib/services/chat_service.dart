@@ -18,13 +18,21 @@ class ChatService {
         throw Exception('No authentication token');
       }
 
+      print('Getting messages for user: $userId');
+      final endpoint = '${ApiConfig.getMessagesEndpoint}/$userId';
+      print('Get messages URL: ${ApiConfig.baseUrl}$endpoint');
+
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/messages/$userId'),
+        Uri.parse('${ApiConfig.baseUrl}$endpoint'),
         headers: {
-          'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
         },
       );
+
+      print('Get messages response status: ${response.statusCode}');
+      print('Get messages response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final List<dynamic> messagesData = json.decode(response.body);
@@ -45,17 +53,25 @@ class ChatService {
         throw Exception('No authentication token');
       }
 
+      print('Sending message to user: $receiverId');
+      print('Message text: $text');
+      print('Using endpoint: ${ApiConfig.sendMessageEndpoint}');
+
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/messages'),
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.sendMessageEndpoint}'),
         headers: {
-          'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
         },
         body: json.encode({
-          'receiver_id': receiverId,
+          'receiverId': receiverId,
           'text': text,
         }),
       );
+
+      print('Send message response status: ${response.statusCode}');
+      print('Send message response body: ${response.body}');
 
       if (response.statusCode == 201) {
         final messageData = json.decode(response.body);

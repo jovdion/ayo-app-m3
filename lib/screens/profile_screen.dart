@@ -65,9 +65,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _userService.updateProfile(
         username: _usernameController.text,
         email: _emailController.text,
-        password: _passwordController.text.isNotEmpty
-            ? _passwordController.text
-            : null,
       );
 
       setState(() {
