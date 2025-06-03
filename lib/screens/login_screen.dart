@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    print('=== LOGIN SCREEN INITIALIZED ===');
     // Check if already logged in
     if (_authService.isLoggedIn()) {
       print('User already logged in, redirecting to chat list');
@@ -30,24 +31,37 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => const ChatListScreen()),
         );
       });
+    } else {
+      print('No user logged in');
     }
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('=== LOGIN ATTEMPT ===');
+    print('Form validation starting...');
+    if (!_formKey.currentState!.validate()) {
+      print('Form validation failed');
+      return;
+    }
+    print('Form validation successful');
 
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
+    print('Loading state set to true');
 
     try {
-      print('Attempting login with email: ${_emailController.text}');
+      print('Attempting login with:');
+      print('Email: ${_emailController.text}');
+      print('Password length: ${_passwordController.text.length} characters');
+
       final user = await _authService.login(
         _emailController.text,
         _passwordController.text,
       );
-      print('Login successful, user: ${user?.toMap()}');
+      print('Login successful');
+      print('User details: ${user.toMap()}');
 
       if (mounted) {
         print('Navigating to chat list screen');
@@ -57,17 +71,20 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      print('Login error: $e');
+      print('Login error occurred: $e');
       setState(() {
         _errorMessage = e.toString();
       });
+      print('Error message set to: $_errorMessage');
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
+        print('Loading state set to false');
       }
     }
+    print('=== LOGIN ATTEMPT COMPLETE ===');
   }
 
   @override

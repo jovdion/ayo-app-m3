@@ -21,37 +21,57 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _errorMessage;
 
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('=== REGISTER ATTEMPT ===');
+    print('Form validation starting...');
+    if (!_formKey.currentState!.validate()) {
+      print('Form validation failed');
+      return;
+    }
+    print('Form validation successful');
 
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
+    print('Loading state set to true');
 
     try {
+      print('Attempting registration with:');
+      print('Username: ${_nameController.text}');
+      print('Email: ${_emailController.text}');
+      print('Password length: ${_passwordController.text.length} characters');
+
       final user = await _authService.register(
         _nameController.text,
         _emailController.text,
         _passwordController.text,
       );
 
+      print('Registration successful');
+      print('User details: ${user.toMap()}');
+
       if (mounted) {
+        print('Navigating to chat list screen');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const ChatListScreen()),
         );
       }
     } catch (e) {
+      print('Registration error occurred: $e');
       setState(() {
         _errorMessage = e.toString();
       });
+      print('Error message set to: $_errorMessage');
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
+        print('Loading state set to false');
       }
     }
+    print('=== REGISTER ATTEMPT COMPLETE ===');
   }
 
   @override

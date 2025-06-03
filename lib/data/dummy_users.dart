@@ -1,7 +1,7 @@
 final List<Map<String, dynamic>> dummyUsers = [
   {
     "id": "u1",
-    "name": "Sarah",
+    "username": "Sarah",
     "email": "sarah@example.com",
     "avatarUrl": null,
     "latitude": -7.7829, // Malioboro
@@ -12,7 +12,7 @@ final List<Map<String, dynamic>> dummyUsers = [
   },
   {
     "id": "u2",
-    "name": "David",
+    "username": "David",
     "email": "david@example.com",
     "avatarUrl": null,
     "latitude": -7.8019, // Kraton Yogyakarta
@@ -23,7 +23,7 @@ final List<Map<String, dynamic>> dummyUsers = [
   },
   {
     "id": "u3",
-    "name": "Maya",
+    "username": "Maya",
     "email": "maya@example.com",
     "avatarUrl": null,
     "latitude": -7.7827, // Tugu Yogyakarta
@@ -34,7 +34,7 @@ final List<Map<String, dynamic>> dummyUsers = [
   },
   {
     "id": "u4",
-    "name": "Alex",
+    "username": "Alex",
     "email": "alex@example.com",
     "avatarUrl": null,
     "latitude": -7.8016, // Alun-alun Kidul
@@ -45,7 +45,7 @@ final List<Map<String, dynamic>> dummyUsers = [
   },
   {
     "id": "u5",
-    "name": "Rini",
+    "username": "Rini",
     "email": "rini@example.com",
     "avatarUrl": null,
     "latitude": -7.7831, // Pasar Beringharjo

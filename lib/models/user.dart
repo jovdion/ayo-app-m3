@@ -1,47 +1,43 @@
 class User {
   final String id;
-  final String name;
+  final String username;
   final String email;
-  final String? avatarUrl;
-  final double latitude;
-  final double longitude;
-  final String lastSeen;
-  final String hashedPassword; // Hashed password for security
+  final String? fcmToken;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   User({
     required this.id,
-    required this.name,
+    required this.username,
     required this.email,
-    this.avatarUrl,
-    required this.latitude,
-    required this.longitude,
-    required this.lastSeen,
-    required this.hashedPassword,
+    this.fcmToken,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
-      id: map['id'],
-      name: map['name'],
+      id: map['id'].toString(),
+      username: map['username'],
       email: map['email'],
-      avatarUrl: map['avatarUrl'],
-      latitude: map['latitude'],
-      longitude: map['longitude'],
-      lastSeen: map['lastSeen'],
-      hashedPassword: map['hashedPassword'],
+      fcmToken: map['fcm_token'],
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'])
+          : DateTime.now(),
+      updatedAt: map['updated_at'] != null
+          ? DateTime.parse(map['updated_at'])
+          : DateTime.now(),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'name': name,
+      'username': username,
       'email': email,
-      'avatarUrl': avatarUrl,
-      'latitude': latitude,
-      'longitude': longitude,
-      'lastSeen': lastSeen,
-      'hashedPassword': hashedPassword,
+      'fcm_token': fcmToken,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 }

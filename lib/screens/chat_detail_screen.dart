@@ -45,7 +45,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   void initState() {
     super.initState();
-    userData = dummyUsers.firstWhere((u) => u['name'] == widget.user);
+    userData = dummyUsers.firstWhere((u) => u['username'] == widget.user);
     messages = getDummyMessages(widget.user);
     _getCurrentLocation();
   }
@@ -74,7 +74,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final currentUser = _authService.currentUser;
     if (currentUser == null) return [];
 
-    final userId = dummyUsers.firstWhere((u) => u['name'] == user)['id'];
+    final userId = dummyUsers.firstWhere((u) => u['username'] == user)['id'];
     return dummyChats
         .where(
           (msg) =>

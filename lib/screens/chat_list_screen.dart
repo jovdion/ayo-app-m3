@@ -163,7 +163,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
     return dummyUsers
         .where((user) =>
             user['id'] != currentUser.id &&
-            (user['name'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            (user['username']
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()) ||
                 _searchQuery.isEmpty))
         .toList()
       ..sort((a, b) {
@@ -223,7 +225,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text(
-          currentUser.name,
+          currentUser.username,
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -397,7 +399,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                       leading: CircleAvatar(
                                         backgroundColor: Colors.blue.shade100,
                                         child: Text(
-                                          user['name'][0].toUpperCase(),
+                                          user['username'][0].toUpperCase(),
                                           style: const TextStyle(
                                             color: Colors.blue,
                                             fontWeight: FontWeight.bold,
@@ -408,7 +410,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              user['name'],
+                                              user['username'],
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -448,7 +450,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (_) => ChatDetailScreen(
-                                                user: user['name']),
+                                                user: user['username']),
                                           ),
                                         );
                                       },
