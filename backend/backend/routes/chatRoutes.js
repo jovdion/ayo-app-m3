@@ -32,17 +32,18 @@ router.get('/messages/:otherUserId', verifyToken, async (req, res) => {
       `SELECT * FROM messages 
        WHERE (sender_id = ? AND receiver_id = ?) 
        OR (sender_id = ? AND receiver_id = ?)
-       ORDER BY timestamp ASC`,
+       ORDER BY created_at ASC`,
       [req.userId, req.params.otherUserId, req.params.otherUserId, req.userId]
     );
     
     // Transform the messages to match the client model
     const transformedMessages = messages.map(msg => ({
-      id: msg.id,
-      senderId: msg.sender_id,
-      receiverId: msg.receiver_id,
-      text: msg.text,
-      timestamp: msg.timestamp,
+      id: msg.id.toString(),
+      senderId: msg.sender_id.toString(),
+      receiverId: msg.receiver_id.toString(),
+      content: msg.content,
+      createdAt: msg.created_at,
+      updatedAt: msg.updated_at,
     }));
     
     res.json(transformedMessages);
@@ -59,26 +60,26 @@ router.get('/messages/:otherUserId', verifyToken, async (req, res) => {
 router.post('/send', verifyToken, async (req, res) => {
   try {
     const { receiverId, text } = req.body;
-    console.log('Sending message:', { senderId: req.userId, receiverId, text });
+    console.log('Sending message:', { senderId: req.userId, receiverId, content: text });
 
     if (!text || !receiverId) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    const messageId = uuidv4();
     const timestamp = new Date().toISOString();
 
-    await db.execute(
-      'INSERT INTO messages (id, sender_id, receiver_id, text, timestamp) VALUES (?, ?, ?, ?, ?)',
-      [messageId, req.userId, receiverId, text, timestamp]
+    const [result] = await db.execute(
+      'INSERT INTO messages (sender_id, receiver_id, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, receiverId, text, timestamp, timestamp]
     );
 
     const message = {
-      id: messageId,
-      senderId: req.userId,
-      receiverId,
-      text,
-      timestamp,
+      id: result.insertId.toString(),
+      senderId: req.userId.toString(),
+      receiverId: receiverId.toString(),
+      content: text,
+      createdAt: timestamp,
+      updatedAt: timestamp,
     };
 
     res.status(201).json(message);

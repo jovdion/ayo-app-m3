@@ -46,7 +46,7 @@ class ChatService {
     }
   }
 
-  Future<Message> sendMessage(String receiverId, String text) async {
+  Future<Message> sendMessage(String receiverId, String content) async {
     try {
       final token = _authService.token;
       if (token == null) {
@@ -54,7 +54,7 @@ class ChatService {
       }
 
       print('Sending message to user: $receiverId');
-      print('Message text: $text');
+      print('Message content: $content');
       print('Using endpoint: ${ApiConfig.sendMessageEndpoint}');
 
       final response = await http.post(
@@ -66,7 +66,7 @@ class ChatService {
         },
         body: json.encode({
           'receiverId': receiverId,
-          'text': text,
+          'text': content,
         }),
       );
 
