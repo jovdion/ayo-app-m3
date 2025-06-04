@@ -158,17 +158,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return bearing;
   }
 
-  String formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inDays == 0) {
-      return DateFormat('HH:mm').format(timestamp);
-    } else if (difference.inDays == 1) {
-      return 'Yesterday ${DateFormat('HH:mm').format(timestamp)}';
-    } else {
-      return DateFormat('dd/MM/yy HH:mm').format(timestamp);
-    }
+  Future<String> formatTimestamp(DateTime timestamp) async {
+    final adjustedTime = await TimeHelper.adjustToUserTimezone(timestamp);
+    return TimeHelper.formatMessageTimestamp(adjustedTime);
   }
 
   Future<void> sendMessage(String text) async {
@@ -272,204 +264,237 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                               final hasCurrencyInMessage =
                                   CurrencyHelper.hasCurrency(msg.content);
 
-                              return Container(
-                                margin: EdgeInsets.only(
-                                  left: isMe ? 50 : 8,
-                                  right: isMe ? 8 : 50,
-                                  bottom: 12,
-                                ),
-                                child: Align(
-                                  alignment: isMe
-                                      ? Alignment.centerRight
-                                      : Alignment.centerLeft,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 10,
+                              return FutureBuilder<String>(
+                                future: formatTimestamp(msg.createdAt),
+                                builder: (context, snapshot) {
+                                  final timestamp =
+                                      snapshot.data ?? 'Loading...';
+
+                                  return Container(
+                                    margin: EdgeInsets.only(
+                                      left: msg.senderId == currentUser.id
+                                          ? 50
+                                          : 8,
+                                      right: msg.senderId == currentUser.id
+                                          ? 8
+                                          : 50,
+                                      bottom: 12,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: isMe
-                                          ? Colors.lightBlue[100]
-                                          : Colors.grey[200],
-                                      borderRadius: BorderRadius.only(
-                                        topLeft: const Radius.circular(16),
-                                        topRight: const Radius.circular(16),
-                                        bottomLeft:
-                                            Radius.circular(isMe ? 16 : 0),
-                                        bottomRight:
-                                            Radius.circular(isMe ? 0 : 16),
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 5,
-                                          offset: const Offset(0, 2),
+                                    child: Align(
+                                      alignment: msg.senderId == currentUser.id
+                                          ? Alignment.centerRight
+                                          : Alignment.centerLeft,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 10,
                                         ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: isMe
-                                          ? CrossAxisAlignment.end
-                                          : CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          msg.content,
-                                          style: TextStyle(
-                                            color: isMe
-                                                ? Colors.black87
-                                                : Colors.black,
+                                        decoration: BoxDecoration(
+                                          color: msg.senderId == currentUser.id
+                                              ? Colors.blue[600]
+                                              : Colors.grey[200],
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: const Radius.circular(16),
+                                            topRight: const Radius.circular(16),
+                                            bottomLeft: Radius.circular(
+                                                msg.senderId == currentUser.id
+                                                    ? 16
+                                                    : 0),
+                                            bottomRight: Radius.circular(
+                                                msg.senderId == currentUser.id
+                                                    ? 0
+                                                    : 16),
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          formatTimestamp(msg.createdAt),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: isMe
-                                                ? Colors.white.withOpacity(0.7)
-                                                : Colors.black54,
-                                          ),
-                                        ),
-                                        if (hasCurrencyInMessage) ...[
-                                          const SizedBox(height: 8),
-                                          Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: isMe
-                                                  ? Colors.lightBlue
-                                                      .withOpacity(0.1)
-                                                  : Colors.grey
-                                                      .withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              msg.senderId == currentUser.id
+                                                  ? CrossAxisAlignment.end
+                                                  : CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              msg.content,
+                                              style: TextStyle(
+                                                color: msg.senderId ==
+                                                        currentUser.id
+                                                    ? Colors.white
+                                                    : Colors.black87,
+                                              ),
                                             ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              timestamp,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: msg.senderId ==
+                                                        currentUser.id
+                                                    ? Colors.white70
+                                                    : Colors.black54,
+                                              ),
+                                            ),
+                                            if (hasCurrencyInMessage) ...[
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: msg.senderId ==
+                                                          currentUser.id
+                                                      ? Colors.lightBlue
+                                                          .withOpacity(0.1)
+                                                      : Colors.grey
+                                                          .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
-                                                    Icon(
-                                                      Icons.currency_exchange,
-                                                      size: 14,
-                                                      color: isMe
-                                                          ? Colors.lightBlue
-                                                              .withOpacity(0.7)
-                                                          : Colors.grey
-                                                              .withOpacity(0.7),
+                                                    Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Icon(
+                                                          Icons
+                                                              .currency_exchange,
+                                                          size: 14,
+                                                          color: msg.senderId ==
+                                                                  currentUser.id
+                                                              ? Colors.lightBlue
+                                                                  .withOpacity(
+                                                                      0.7)
+                                                              : Colors.grey
+                                                                  .withOpacity(
+                                                                      0.7),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 4),
+                                                        Text(
+                                                          'Convert to:',
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                            color: msg.senderId ==
+                                                                    currentUser
+                                                                        .id
+                                                                ? Colors
+                                                                    .lightBlue
+                                                                    .withOpacity(
+                                                                        0.7)
+                                                                : Colors.grey
+                                                                    .withOpacity(
+                                                                        0.7),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 4),
+                                                        DropdownButton<String>(
+                                                          value:
+                                                              selectedCurrencyPerMessage[
+                                                                      index] ??
+                                                                  currencies
+                                                                      .first,
+                                                          items: currencies
+                                                              .map((currency) {
+                                                            return DropdownMenuItem(
+                                                              value: currency,
+                                                              child: Text(
+                                                                currency,
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: msg.senderId ==
+                                                                          currentUser
+                                                                              .id
+                                                                      ? Colors
+                                                                          .lightBlue
+                                                                          .shade700
+                                                                      : Colors
+                                                                          .grey
+                                                                          .shade700,
+                                                                ),
+                                                              ),
+                                                            );
+                                                          }).toList(),
+                                                          onChanged: (value) {
+                                                            if (value != null) {
+                                                              setState(() {
+                                                                selectedCurrencyPerMessage[
+                                                                        index] =
+                                                                    value;
+                                                              });
+                                                            }
+                                                          },
+                                                          underline:
+                                                              const SizedBox(),
+                                                          isDense: true,
+                                                        ),
+                                                      ],
                                                     ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      'Convert to:',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: isMe
-                                                            ? Colors.lightBlue
-                                                                .withOpacity(
-                                                                    0.7)
-                                                            : Colors.grey
-                                                                .withOpacity(
-                                                                    0.7),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    DropdownButton<String>(
-                                                      value:
-                                                          selectedCurrencyPerMessage[
-                                                                  index] ??
-                                                              currencies.first,
-                                                      items: currencies
-                                                          .map((currency) {
-                                                        return DropdownMenuItem(
-                                                          value: currency,
-                                                          child: Text(
-                                                            currency,
-                                                            style: TextStyle(
-                                                              fontSize: 12,
-                                                              color: isMe
-                                                                  ? Colors
-                                                                      .lightBlue
-                                                                      .shade700
-                                                                  : Colors.grey
-                                                                      .shade700,
-                                                            ),
+                                                    const SizedBox(height: 4),
+                                                    Builder(
+                                                      builder: (context) {
+                                                        final currencies =
+                                                            CurrencyHelper
+                                                                .extractCurrenciesFromText(
+                                                                    msg.content);
+                                                        if (currencies.isEmpty)
+                                                          return const SizedBox();
+
+                                                        final amount =
+                                                            currencies.first[
+                                                                    'amount']
+                                                                as double;
+                                                        final fromCurrency =
+                                                            currencies.first[
+                                                                    'currency']
+                                                                as String;
+                                                        final toCurrency =
+                                                            selectedCurrencyPerMessage[
+                                                                    index] ??
+                                                                this
+                                                                    .currencies
+                                                                    .first;
+
+                                                        final convertedAmount =
+                                                            CurrencyHelper
+                                                                .convertCurrency(
+                                                          amount,
+                                                          fromCurrency,
+                                                          toCurrency,
+                                                        );
+
+                                                        return Text(
+                                                          CurrencyHelper
+                                                              .formatCurrency(
+                                                                  convertedAmount,
+                                                                  toCurrency),
+                                                          style: TextStyle(
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                            color: msg.senderId ==
+                                                                    currentUser
+                                                                        .id
+                                                                ? Colors
+                                                                    .lightBlue
+                                                                    .shade700
+                                                                : Colors.grey
+                                                                    .shade700,
                                                           ),
                                                         );
-                                                      }).toList(),
-                                                      onChanged: (value) {
-                                                        if (value != null) {
-                                                          setState(() {
-                                                            selectedCurrencyPerMessage[
-                                                                index] = value;
-                                                          });
-                                                        }
                                                       },
-                                                      underline:
-                                                          const SizedBox(),
-                                                      isDense: true,
                                                     ),
                                                   ],
                                                 ),
-                                                const SizedBox(height: 4),
-                                                Builder(
-                                                  builder: (context) {
-                                                    final currencies =
-                                                        CurrencyHelper
-                                                            .extractCurrenciesFromText(
-                                                                msg.content);
-                                                    if (currencies.isEmpty)
-                                                      return const SizedBox();
-
-                                                    final amount = currencies
-                                                            .first['amount']
-                                                        as double;
-                                                    final fromCurrency =
-                                                        currencies.first[
-                                                                'currency']
-                                                            as String;
-                                                    final toCurrency =
-                                                        selectedCurrencyPerMessage[
-                                                                index] ??
-                                                            this
-                                                                .currencies
-                                                                .first;
-
-                                                    final convertedAmount =
-                                                        CurrencyHelper
-                                                            .convertCurrency(
-                                                      amount,
-                                                      fromCurrency,
-                                                      toCurrency,
-                                                    );
-
-                                                    return Text(
-                                                      CurrencyHelper
-                                                          .formatCurrency(
-                                                              convertedAmount,
-                                                              toCurrency),
-                                                      style: TextStyle(
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                        color: isMe
-                                                            ? Colors.lightBlue
-                                                                .shade700
-                                                            : Colors
-                                                                .grey.shade700,
-                                                      ),
-                                                    );
-                                                  },
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ],
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                },
                               );
                             },
                           ),

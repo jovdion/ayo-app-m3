@@ -1,123 +1,68 @@
+import 'package:intl/intl.dart';
+
 class CurrencyHelper {
-  static final RegExp currencyPattern = RegExp(
-    r'(?:(?:Rp|USD|EUR|GBP|JPY|AUD|KRW|SGD|\$|€|£|¥|₩|S\$)[,.\s]*[0-9]+(?:[,.][0-9]+)*)|(?:[0-9]+(?:[,.][0-9]+)*(?:\s*(?:dollars?|euros?|pounds?|yen|won|rupiah)))',
-    caseSensitive: false,
-  );
+  static final Map<String, double> _exchangeRates = {
+    'IDR': 1.0,
+    'USD': 0.000064,
+    'EUR': 0.000059,
+    'GBP': 0.000051,
+    'JPY': 0.0095,
+    'AUD': 0.000098,
+    'KRW': 0.085,
+    'SGD': 0.000086,
+  };
 
   static bool hasCurrency(String text) {
-    return currencyPattern.hasMatch(text);
+    return extractCurrenciesFromText(text).isNotEmpty;
   }
 
   static List<Map<String, dynamic>> extractCurrenciesFromText(String text) {
-    final matches = currencyPattern.allMatches(text);
-    final results = <Map<String, dynamic>>[];
+    final pattern =
+        RegExp(r'([0-9]+([,.][0-9]+)?)\s*(IDR|USD|EUR|GBP|JPY|AUD|KRW|SGD)');
+    final matches = pattern.allMatches(text);
 
-    for (final match in matches) {
-      final value = match.group(0)!.toLowerCase();
-      double amount = 0;
-      String currency = 'USD';
-
-      // Extract numeric value and currency
-      if (value.contains('rp') || value.contains('rupiah')) {
-        amount = _extractNumber(value);
-        currency = 'IDR';
-      } else if (value.contains('\$') || value.contains('dollar')) {
-        amount = _extractNumber(value);
-        currency = 'USD';
-      } else if (value.contains('€') || value.contains('euro')) {
-        amount = _extractNumber(value);
-        currency = 'EUR';
-      } else if (value.contains('£') || value.contains('pound')) {
-        amount = _extractNumber(value);
-        currency = 'GBP';
-      } else if (value.contains('¥') || value.contains('yen')) {
-        amount = _extractNumber(value);
-        currency = 'JPY';
-      } else if (value.contains('₩') || value.contains('won')) {
-        amount = _extractNumber(value);
-        currency = 'KRW';
-      } else if (value.contains('aud')) {
-        amount = _extractNumber(value);
-        currency = 'AUD';
-      } else if (value.contains('sgd') || value.contains('s\$')) {
-        amount = _extractNumber(value);
-        currency = 'SGD';
-      }
-
-      if (amount > 0) {
-        results.add({
-          'amount': amount,
-          'currency': currency,
-        });
-      }
-    }
-
-    return results;
-  }
-
-  static double _extractNumber(String value) {
-    final numericPattern = RegExp(r'[0-9]+(?:[,.][0-9]+)*');
-    final match = numericPattern.firstMatch(value);
-    if (match == null) return 0;
-
-    String numStr = match.group(0)!.replaceAll(',', '');
-    return double.tryParse(numStr) ?? 0;
+    return matches.map((match) {
+      final amountStr = match.group(1)!.replaceAll(',', '.');
+      return {
+        'amount': double.parse(amountStr),
+        'currency': match.group(3),
+      };
+    }).toList();
   }
 
   static double convertCurrency(
       double amount, String fromCurrency, String toCurrency) {
-    // Exchange rates (as of a recent date)
-    final rates = {
-      'USD': 1.0,
-      'EUR': 0.92,
-      'GBP': 0.79,
-      'JPY': 149.50,
-      'AUD': 1.52,
-      'KRW': 1331.24,
-      'SGD': 1.34,
-      'IDR': 15747.35,
-    };
+    if (fromCurrency == toCurrency) return amount;
 
-    // Convert to USD first
-    double usdAmount = amount / (rates[fromCurrency] ?? 1.0);
-    // Then convert to target currency
-    return usdAmount * (rates[toCurrency] ?? 1.0);
+    // Convert to IDR first (base currency)
+    final amountInIDR = amount / _exchangeRates[fromCurrency]!;
+
+    // Convert from IDR to target currency
+    return amountInIDR * _exchangeRates[toCurrency]!;
   }
 
   static String formatCurrency(double amount, String currency) {
-    String symbol = '';
-    int decimals = 2;
+    final formatter = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: currency,
+      decimalDigits: 2,
+    );
 
-    switch (currency) {
-      case 'USD':
-        symbol = '\$';
-        break;
-      case 'EUR':
-        symbol = '€';
-        break;
-      case 'GBP':
-        symbol = '£';
-        break;
-      case 'JPY':
-        symbol = '¥';
-        decimals = 0;
-        break;
-      case 'AUD':
-        symbol = 'A\$';
-        break;
-      case 'KRW':
-        symbol = '₩';
-        decimals = 0;
-        break;
-      case 'SGD':
-        symbol = 'S\$';
-        break;
-      case 'IDR':
-        symbol = 'Rp';
-        decimals = 0;
-        break;
-    }
+    String formatted = formatter
+        .format(amount)
+        .replaceAll('IDR', 'IDR ') // Add space after currency code
+        .replaceAll('USD', 'USD ')
+        .replaceAll('EUR', 'EUR ')
+        .replaceAll('GBP', 'GBP ')
+        .replaceAll('JPY', 'JPY ')
+        .replaceAll('AUD', 'AUD ')
+        .replaceAll('KRW', 'KRW ')
+        .replaceAll('SGD', 'SGD ');
 
-    return '$symbol${amount.toStringAsFixed(decimals)}';
+    // Replace decimal point with comma and use dot as thousand separator
+    return formatted
+        .replaceAll('.', '#') // Temporarily replace dots
+        .replaceAll(',', '.') // Replace comma with dot
+        .replaceAll('#', ','); // Replace temporary # with comma
   }
 }

@@ -34,6 +34,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     _checkAuth();
     _loadUsers();
     _requestLocationPermission();
+    _setDefaultLocation();
   }
 
   @override
@@ -165,6 +166,34 @@ class _ChatListScreenState extends State<ChatListScreen> {
     } catch (e) {
       print('Error loading users: $e');
       // Show error message to user if needed
+    }
+  }
+
+  Future<void> _setDefaultLocation() async {
+    try {
+      // Default location (Jakarta)
+      double defaultLat = -6.2088;
+      double defaultLong = 106.8456;
+
+      // Try to get actual location first
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (serviceEnabled) {
+        try {
+          Position position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 5),
+          );
+          defaultLat = position.latitude;
+          defaultLong = position.longitude;
+        } catch (e) {
+          print('Using default location due to error: $e');
+        }
+      }
+
+      // Update location in backend
+      await _userService.updateLocation(defaultLat, defaultLong);
+    } catch (e) {
+      print('Error setting default location: $e');
     }
   }
 
@@ -417,23 +446,53 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      subtitle: Text(user.email),
-                                      trailing: IconButton(
-                                        icon: const Icon(Icons.explore),
-                                        onPressed: () => _openCompass(user),
-                                        tooltip: 'Open compass',
-                                      ),
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => ChatDetailScreen(
-                                              username: user.username,
-                                              userId: user.id,
+                                      subtitle: _currentPosition != null &&
+                                              user.latitude != null &&
+                                              user.longitude != null
+                                          ? Text(
+                                              '${(Geolocator.distanceBetween(
+                                                    _currentPosition!.latitude,
+                                                    _currentPosition!.longitude,
+                                                    user.latitude!,
+                                                    user.longitude!,
+                                                  ) / 1000).toStringAsFixed(1)} km',
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                              ),
+                                            )
+                                          : Text(
+                                              'Calculating distance...',
+                                              style: TextStyle(
+                                                color: Colors.grey[400],
+                                                fontStyle: FontStyle.italic,
+                                              ),
                                             ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.explore),
+                                            onPressed: () => _openCompass(user),
+                                            tooltip: 'Open compass',
                                           ),
-                                        );
-                                      },
+                                          IconButton(
+                                            icon: const Icon(Icons.chat),
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      ChatDetailScreen(
+                                                    username: user.username,
+                                                    userId: user.id,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            tooltip: 'Start chat',
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   );
                                 },

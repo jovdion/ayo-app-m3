@@ -123,4 +123,37 @@ router.put('/profile', verifyToken, async (req, res) => {
   }
 });
 
+// Update user location
+router.put('/location', verifyToken, async (req, res) => {
+  try {
+    console.log('Updating location for user ID:', req.userId);
+    const { latitude, longitude } = req.body;
+
+    if (latitude === undefined || longitude === undefined) {
+      return res.status(400).json({ message: 'Latitude and longitude are required' });
+    }
+
+    const [result] = await db.execute(
+      'UPDATE users SET latitude = ?, longitude = ? WHERE id = ?',
+      [latitude, longitude, req.userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ 
+      message: 'Location updated successfully',
+      latitude,
+      longitude
+    });
+  } catch (error) {
+    console.error('Error updating location:', error);
+    res.status(500).json({ 
+      message: 'Error updating location',
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router; 

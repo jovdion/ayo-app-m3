@@ -4,6 +4,8 @@ const chatRoutes = require('./routes/chatRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const db = require('./config/database');
+const cors = require('cors');
+const morgan = require('morgan');
 
 dotenv.config();
 
@@ -29,35 +31,29 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+app.use(morgan('dev'));
 
 // Test database connection
-app.get('/api/health', async (req, res) => {
-  try {
-    await db.execute('SELECT 1');
-    res.json({ status: 'healthy', database: 'connected' });
-  } catch (error) {
-    console.error('Database connection error:', error);
-    res.status(500).json({ 
-      status: 'unhealthy', 
-      database: 'disconnected',
-      error: error.message 
-    });
-  }
-});
+db.getConnection()
+  .then((connection) => {
+    console.log('Database connected successfully');
+    connection.release();
+  })
+  .catch((err) => {
+    console.error('Error connecting to the database:', err);
+  });
 
 // Routes
-app.use('/api/chat', chatRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  console.error('Stack:', err.stack);
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal Server Error',
-    error: process.env.NODE_ENV === 'development' ? err : {},
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  console.error(err.stack);
+  res.status(500).json({ 
+    message: 'Something broke!',
+    error: err.message 
   });
 });
 
@@ -76,18 +72,6 @@ process.on('uncaughtException', (error) => {
 });
 
 const PORT = process.env.PORT || 3000;
-
-// Test database connection before starting server
-db.execute('SELECT 1')
-  .then(() => {
-    console.log('Database connection successful');
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-      console.log('Environment:', process.env.NODE_ENV || 'development');
-      console.log('Database host:', process.env.DB_HOST || '34.101.154.234');
-    });
-  })
-  .catch((error) => {
-    console.error('Failed to connect to database:', error);
-    process.exit(1);
-  }); 
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+}); 

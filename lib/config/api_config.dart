@@ -6,16 +6,16 @@ class ApiConfig {
   static const String loginEndpoint = '/api/auth/login';
   static const String registerEndpoint = '/api/auth/register';
   // User endpoints
-  static const String updateLocationEndpoint = '/api/users/location';
   static const String getUsersEndpoint = '/api/users';
-  static const String getUserProfileEndpoint = '/api/users/{id}';
-  static const String updateProfileEndpoint = '/api/users/{id}';
+  static const String getUserProfileEndpoint = '/api/users/profile';
+  static const String updateProfileEndpoint = '/api/users/profile';
+  static const String updateLocationEndpoint = '/api/users/location';
   // Message endpoints
   static const String sendMessageEndpoint = '/api/chat/send';
   static const String getMessagesEndpoint = '/api/chat/messages';
 
   // Helper method to replace ID parameter
   static String getEndpointWithId(String endpoint, String id) {
-    return endpoint.replaceAll('{id}', id);
+    return '$endpoint/$id';
   }
 }

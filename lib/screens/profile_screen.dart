@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
+import '../utils/time_helper.dart';
 import 'chat_list_screen.dart';
 import 'login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _usernameController;
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
+  String _selectedTimezone = 'Asia/Jakarta';
 
   @override
   void initState() {
@@ -31,6 +34,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _usernameController = TextEditingController(text: user?.username);
     _emailController = TextEditingController(text: user?.email);
     _passwordController = TextEditingController();
+    _loadUserData();
+    _loadTimezone();
   }
 
   @override
@@ -93,6 +98,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
+  }
+
+  Future<void> _loadUserData() async {
+    final user = _authService.currentUser;
+    if (user == null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      return;
+    }
+  }
+
+  Future<void> _loadTimezone() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedTimezone = prefs.getString('timezone') ?? 'Asia/Jakarta';
+    });
   }
 
   @override
@@ -215,6 +238,114 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         subtitle: Text(user.email),
                       ),
                     ],
+                    const SizedBox(height: 16),
+                    // Timezone Selector
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedTimezone,
+                        decoration: const InputDecoration(
+                          labelText: 'Timezone',
+                          border: InputBorder.none,
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'Asia/Jakarta',
+                              child: Text('WIB (Jakarta)')),
+                          DropdownMenuItem(
+                              value: 'Asia/Makassar',
+                              child: Text('WITA (Makassar)')),
+                          DropdownMenuItem(
+                              value: 'Asia/Jayapura',
+                              child: Text('WIT (Jayapura)')),
+                          DropdownMenuItem(
+                              value: 'Europe/London',
+                              child: Text('London (GMT)')),
+                        ],
+                        onChanged: (String? newValue) async {
+                          if (newValue != null) {
+                            setState(() {
+                              _selectedTimezone = newValue;
+                            });
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setString('timezone', newValue);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Timezone Settings
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Timezone Settings',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            FutureBuilder<int>(
+                              future: TimeHelper.getTimezoneOffset(),
+                              builder: (context, snapshot) {
+                                final currentOffset = snapshot.data ?? 0;
+
+                                return Row(
+                                  children: [
+                                    Text(
+                                      'UTC${currentOffset >= 0 ? '+' : ''}$currentOffset',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        final TimeOfDay? time =
+                                            await showTimePicker(
+                                          context: context,
+                                          initialTime: TimeOfDay(
+                                            hour: currentOffset >= 0
+                                                ? currentOffset
+                                                : 0,
+                                            minute: 0,
+                                          ),
+                                          builder: (context, child) {
+                                            return MediaQuery(
+                                              data: MediaQuery.of(context)
+                                                  .copyWith(
+                                                alwaysUse24HourFormat: true,
+                                              ),
+                                              child: child!,
+                                            );
+                                          },
+                                        );
+
+                                        if (time != null) {
+                                          await TimeHelper.setTimezoneOffset(
+                                              time.hour);
+                                          setState(() {}); // Refresh UI
+                                        }
+                                      },
+                                      child: const Text('Change Timezone'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
