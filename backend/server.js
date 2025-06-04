@@ -1,35 +1,18 @@
 const express = require('express');
-const dotenv = require('dotenv');
-const chatRoutes = require('./routes/chatRoutes');
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const db = require('./config/database');
 const cors = require('cors');
 const morgan = require('morgan');
+const dotenv = require('dotenv');
+const userRoutes = require('./routes/userRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const authRoutes = require('./routes/authRoutes');
+const db = require('./config/database');
 
 dotenv.config();
 
 const app = express();
 
-// Middleware for logging
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  console.log('Request Headers:', req.headers);
-  if (req.body) console.log('Request Body:', req.body);
-  next();
-});
-
-// CORS Middleware
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
-
+// Middleware
+app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
