@@ -36,6 +36,7 @@ class ChatService {
 
       if (response.statusCode == 200) {
         final List<dynamic> messagesData = json.decode(response.body);
+        print('Parsed messages data: $messagesData');
         return messagesData.map((data) => Message.fromMap(data)).toList();
       } else {
         throw Exception('Failed to get messages: ${response.body}');
@@ -53,8 +54,9 @@ class ChatService {
         throw Exception('No authentication token');
       }
 
-      print('Sending message to user: $receiverId');
-      print('Message content: $content');
+      print('Sending message:');
+      print('Receiver ID: $receiverId');
+      print('Content: $content');
       print('Using endpoint: ${ApiConfig.sendMessageEndpoint}');
 
       final response = await http.post(
@@ -75,6 +77,7 @@ class ChatService {
 
       if (response.statusCode == 201) {
         final messageData = json.decode(response.body);
+        print('Parsed message data: $messageData');
         return Message.fromMap(messageData);
       } else {
         throw Exception('Failed to send message: ${response.body}');

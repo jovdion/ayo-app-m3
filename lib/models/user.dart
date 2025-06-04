@@ -4,42 +4,64 @@ class User {
   final String id;
   final String username;
   final String email;
-  final String? fcmToken;
-  final DateTime createdAt;
-  final DateTime updatedAt;
   final double? latitude;
   final double? longitude;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   User({
     required this.id,
     required this.username,
     required this.email,
-    this.fcmToken,
-    required this.createdAt,
-    required this.updatedAt,
     this.latitude,
     this.longitude,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory User.fromMap(Map<String, dynamic> map) {
-    return User(
-      id: map['id']?.toString() ?? '',
-      username: map['username']?.toString() ?? '',
-      email: map['email']?.toString() ?? '',
-      fcmToken: map['fcm_token']?.toString(),
-      createdAt: map['created_at'] != null
-          ? DateTime.parse(map['created_at'].toString())
-          : DateTime.now(),
-      updatedAt: map['updated_at'] != null
-          ? DateTime.parse(map['updated_at'].toString())
-          : DateTime.now(),
-      latitude: map['latitude'] != null
-          ? double.tryParse(map['latitude'].toString())
-          : null,
-      longitude: map['longitude'] != null
-          ? double.tryParse(map['longitude'].toString())
-          : null,
+    print('Creating User from map: $map'); // Debug log
+
+    // Handle latitude
+    double? lat;
+    if (map['latitude'] != null) {
+      try {
+        lat = double.parse(map['latitude'].toString());
+        print('Parsed latitude: $lat');
+      } catch (e) {
+        print('Error parsing latitude: $e');
+      }
+    } else {
+      print('Latitude is null in response');
+    }
+
+    // Handle longitude
+    double? lng;
+    if (map['longitude'] != null) {
+      try {
+        lng = double.parse(map['longitude'].toString());
+        print('Parsed longitude: $lng');
+      } catch (e) {
+        print('Error parsing longitude: $e');
+      }
+    } else {
+      print('Longitude is null in response');
+    }
+
+    final user = User(
+      id: map['id'].toString(),
+      username: map['username'],
+      email: map['email'],
+      latitude: lat,
+      longitude: lng,
+      createdAt:
+          map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
+      updatedAt:
+          map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
     );
+
+    print('Created user object: $user');
+    return user;
   }
 
   Map<String, dynamic> toMap() {
@@ -47,11 +69,10 @@ class User {
       'id': id,
       'username': username,
       'email': email,
-      'fcm_token': fcmToken,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
       'latitude': latitude,
       'longitude': longitude,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 
@@ -100,6 +121,6 @@ class User {
 
   @override
   String toString() {
-    return 'User(id: $id, username: $username, email: $email, fcmToken: $fcmToken, latitude: $latitude, longitude: $longitude)';
+    return 'User(id: $id, username: $username, email: $email, lat: $latitude, lng: $longitude)';
   }
 }

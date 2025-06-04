@@ -27,7 +27,7 @@ router.get('/', verifyToken, async (req, res) => {
     console.log('Getting users list for user ID:', req.userId);
     
     const [users] = await db.execute(
-      'SELECT id, username, email FROM users WHERE id != ?',
+      'SELECT id, username, email, latitude, longitude FROM users WHERE id != ?',
       [req.userId]
     );
     
@@ -48,7 +48,7 @@ router.get('/profile/:userId', verifyToken, async (req, res) => {
     console.log('Getting profile for user ID:', req.params.userId);
     
     const [users] = await db.execute(
-      'SELECT id, username, email FROM users WHERE id = ?',
+      'SELECT id, username, email, latitude, longitude FROM users WHERE id = ?',
       [req.params.userId]
     );
     
@@ -109,7 +109,7 @@ router.put('/profile', verifyToken, async (req, res) => {
 
     // Get updated user data
     const [users] = await db.execute(
-      'SELECT id, username, email FROM users WHERE id = ?',
+      'SELECT id, username, email, latitude, longitude FROM users WHERE id = ?',
       [req.userId]
     );
 

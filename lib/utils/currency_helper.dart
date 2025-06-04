@@ -13,35 +13,69 @@ class CurrencyHelper {
   };
 
   static bool hasCurrency(String text) {
-    return extractCurrenciesFromText(text).isNotEmpty;
+    print('Checking for currency in text: $text');
+    final result = extractCurrenciesFromText(text).isNotEmpty;
+    print('Has currency: $result');
+    return result;
   }
 
   static List<Map<String, dynamic>> extractCurrenciesFromText(String text) {
-    final pattern =
-        RegExp(r'([0-9]+([,.][0-9]+)?)\s*(IDR|USD|EUR|GBP|JPY|AUD|KRW|SGD)');
+    print('Extracting currencies from text: $text');
+    // Updated pattern to handle $ symbol and optional spaces
+    final pattern = RegExp(
+        r'(?:(?:USD|\$)\s*(\d+(?:[,.]\d+)?)|(\d+(?:[,.]\d+)?)\s*(?:IDR|USD|EUR|GBP|JPY|AUD|KRW|SGD))');
     final matches = pattern.allMatches(text);
+    print('Found ${matches.length} currency matches');
 
-    return matches.map((match) {
-      final amountStr = match.group(1)!.replaceAll(',', '.');
+    final result = matches.map((match) {
+      String? amountStr;
+      String currency;
+
+      // Handle $ prefix case
+      if (match.group(1) != null) {
+        amountStr = match.group(1);
+        currency = 'USD';
+      } else {
+        amountStr = match.group(2);
+        currency = text.substring(match.end - 3, match.end);
+      }
+
+      amountStr = amountStr!.replaceAll(',', '.');
+      final amount = double.parse(amountStr);
+
+      print('Extracted currency: $amount $currency');
       return {
-        'amount': double.parse(amountStr),
-        'currency': match.group(3),
+        'amount': amount,
+        'currency': currency,
       };
     }).toList();
+
+    print('Extracted currencies: $result');
+    return result;
   }
 
   static double convertCurrency(
       double amount, String fromCurrency, String toCurrency) {
+    print('Converting $amount from $fromCurrency to $toCurrency');
+
+    // Handle $ prefix for USD
+    if (fromCurrency == r'$') fromCurrency = 'USD';
+    if (toCurrency == r'$') toCurrency = 'USD';
+
     if (fromCurrency == toCurrency) return amount;
 
     // Convert to IDR first (base currency)
     final amountInIDR = amount / _exchangeRates[fromCurrency]!;
+    print('Amount in IDR: $amountInIDR');
 
     // Convert from IDR to target currency
-    return amountInIDR * _exchangeRates[toCurrency]!;
+    final result = amountInIDR * _exchangeRates[toCurrency]!;
+    print('Converted amount: $result');
+    return result;
   }
 
   static String formatCurrency(double amount, String currency) {
+    print('Formatting amount: $amount $currency');
     final formatter = NumberFormat.currency(
       locale: 'id_ID',
       symbol: currency,
@@ -50,7 +84,7 @@ class CurrencyHelper {
 
     String formatted = formatter
         .format(amount)
-        .replaceAll('IDR', 'IDR ') // Add space after currency code
+        .replaceAll('IDR', 'IDR ')
         .replaceAll('USD', 'USD ')
         .replaceAll('EUR', 'EUR ')
         .replaceAll('GBP', 'GBP ')
@@ -60,9 +94,12 @@ class CurrencyHelper {
         .replaceAll('SGD', 'SGD ');
 
     // Replace decimal point with comma and use dot as thousand separator
-    return formatted
-        .replaceAll('.', '#') // Temporarily replace dots
-        .replaceAll(',', '.') // Replace comma with dot
-        .replaceAll('#', ','); // Replace temporary # with comma
+    formatted = formatted
+        .replaceAll('.', '#')
+        .replaceAll(',', '.')
+        .replaceAll('#', ',');
+
+    print('Formatted currency: $formatted');
+    return formatted;
   }
 }

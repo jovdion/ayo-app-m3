@@ -16,6 +16,12 @@ class AuthService {
   User? get currentUser => _currentUser;
   String? get token => _token;
 
+  // Add method to update current user
+  void updateCurrentUser(User user) {
+    print('Updating current user: $user');
+    _currentUser = user;
+  }
+
   bool isLoggedIn() {
     return _currentUser != null && _token != null;
   }

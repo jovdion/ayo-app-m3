@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/user.dart';
 import '../config/api_config.dart';
 import 'auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UserService {
   static final UserService _instance = UserService._internal();
@@ -40,6 +41,8 @@ class UserService {
 
       print('Getting users list');
       print('Using token: $token');
+      print(
+          'Using endpoint: ${ApiConfig.baseUrl}${ApiConfig.getUsersEndpoint}');
 
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.getUsersEndpoint}'),
@@ -57,8 +60,10 @@ class UserService {
         final List<dynamic> usersData = json.decode(response.body);
         return usersData
             .where((data) => data['id'].toString() != currentUser.id)
-            .map((data) => User.fromMap(data))
-            .toList();
+            .map((data) {
+          print('Processing user data: $data');
+          return User.fromMap(data);
+        }).toList();
       } else {
         final errorMessage = _parseErrorMessage(response.body);
         throw Exception('Failed to get users: $errorMessage');
@@ -119,6 +124,8 @@ class UserService {
       print('Updating location for user ${currentUser.id}');
       print('New coordinates: $latitude, $longitude');
       print('Using token: $token');
+      print(
+          'Using endpoint: ${ApiConfig.baseUrl}${ApiConfig.updateLocationEndpoint}');
 
       final Map<String, dynamic> requestBody = {
         'latitude': latitude,
@@ -139,7 +146,24 @@ class UserService {
       print('Update location response status: ${response.statusCode}');
       print('Update location response body: ${response.body}');
 
-      if (response.statusCode != 200) {
+      if (response.statusCode == 200) {
+        // Update the current user's location in memory
+        final updatedUser = User(
+          id: currentUser.id,
+          username: currentUser.username,
+          email: currentUser.email,
+          latitude: latitude,
+          longitude: longitude,
+          createdAt: currentUser.createdAt,
+          updatedAt: DateTime.now(),
+        );
+        _authService.updateCurrentUser(updatedUser);
+
+        // Update stored user data
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user', json.encode(updatedUser.toMap()));
+        print('Updated user location in memory and storage');
+      } else {
         final errorMessage = _parseErrorMessage(response.body);
         throw Exception('Failed to update location: $errorMessage');
       }

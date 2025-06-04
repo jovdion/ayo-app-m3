@@ -94,7 +94,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Future<void> _loadMessages() async {
     try {
+      print('Loading messages for user: ${widget.userId}');
       final loadedMessages = await _chatService.getMessages(widget.userId);
+      print('Messages loaded: ${loadedMessages.length}');
+      print(
+          'Messages data: ${loadedMessages.map((m) => 'id=${m.id}, senderId=${m.senderId}, receiverId=${m.receiverId}').join('\n')}');
+
       setState(() {
         messages = loadedMessages;
         _isLoading = false;
@@ -167,16 +172,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (text.trim().isEmpty) return;
 
     try {
-      print('Attempting to send message:');
+      print('Sending message:');
       print('Receiver ID: ${widget.userId}');
-      print('Message content: ${text.trim()}');
+      print('Content: ${text.trim()}');
+      print('Current user ID: ${_authService.currentUser?.id}');
 
       final message =
           await _chatService.sendMessage(widget.userId, text.trim());
-
       print('Message sent successfully:');
-      print('Message ID: ${message.id}');
-      print('Content: ${message.content}');
+      print(
+          'Message data: id=${message.id}, senderId=${message.senderId}, receiverId=${message.receiverId}');
 
       setState(() {
         messages.add(message);
@@ -260,7 +265,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             itemCount: messages.length,
                             itemBuilder: (context, index) {
                               final msg = messages[index];
-                              final isMe = msg.senderId == currentUser.id;
+                              final isMe = msg.senderId?.toString() ==
+                                  currentUser.id.toString();
                               final hasCurrencyInMessage =
                                   CurrencyHelper.hasCurrency(msg.content);
 
@@ -272,16 +278,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
                                   return Container(
                                     margin: EdgeInsets.only(
-                                      left: msg.senderId == currentUser.id
-                                          ? 50
-                                          : 8,
-                                      right: msg.senderId == currentUser.id
-                                          ? 8
-                                          : 50,
+                                      left: isMe ? 50 : 8,
+                                      right: isMe ? 8 : 50,
                                       bottom: 12,
                                     ),
                                     child: Align(
-                                      alignment: msg.senderId == currentUser.id
+                                      alignment: isMe
                                           ? Alignment.centerRight
                                           : Alignment.centerLeft,
                                       child: Container(
@@ -290,33 +292,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                           vertical: 10,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: msg.senderId == currentUser.id
+                                          color: isMe
                                               ? Colors.blue[600]
                                               : Colors.grey[200],
                                           borderRadius: BorderRadius.only(
                                             topLeft: const Radius.circular(16),
                                             topRight: const Radius.circular(16),
-                                            bottomLeft: Radius.circular(
-                                                msg.senderId == currentUser.id
-                                                    ? 16
-                                                    : 0),
-                                            bottomRight: Radius.circular(
-                                                msg.senderId == currentUser.id
-                                                    ? 0
-                                                    : 16),
+                                            bottomLeft:
+                                                Radius.circular(isMe ? 16 : 0),
+                                            bottomRight:
+                                                Radius.circular(isMe ? 0 : 16),
                                           ),
                                         ),
                                         child: Column(
-                                          crossAxisAlignment:
-                                              msg.senderId == currentUser.id
-                                                  ? CrossAxisAlignment.end
-                                                  : CrossAxisAlignment.start,
+                                          crossAxisAlignment: isMe
+                                              ? CrossAxisAlignment.end
+                                              : CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               msg.content,
                                               style: TextStyle(
-                                                color: msg.senderId ==
-                                                        currentUser.id
+                                                color: isMe
                                                     ? Colors.white
                                                     : Colors.black87,
                                               ),
@@ -326,8 +322,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                               timestamp,
                                               style: TextStyle(
                                                 fontSize: 10,
-                                                color: msg.senderId ==
-                                                        currentUser.id
+                                                color: isMe
                                                     ? Colors.white70
                                                     : Colors.black54,
                                               ),
@@ -338,12 +333,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                 padding:
                                                     const EdgeInsets.all(8),
                                                 decoration: BoxDecoration(
-                                                  color: msg.senderId ==
-                                                          currentUser.id
-                                                      ? Colors.lightBlue
+                                                  color: isMe
+                                                      ? Colors.white
                                                           .withOpacity(0.1)
-                                                      : Colors.grey
-                                                          .withOpacity(0.1),
+                                                      : Colors.grey[300],
                                                   borderRadius:
                                                       BorderRadius.circular(8),
                                                 ),
@@ -359,14 +352,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                           Icons
                                                               .currency_exchange,
                                                           size: 14,
-                                                          color: msg.senderId ==
-                                                                  currentUser.id
-                                                              ? Colors.lightBlue
-                                                                  .withOpacity(
-                                                                      0.7)
-                                                              : Colors.grey
-                                                                  .withOpacity(
-                                                                      0.7),
+                                                          color: isMe
+                                                              ? Colors.white70
+                                                              : Colors
+                                                                  .grey[600],
                                                         ),
                                                         const SizedBox(
                                                             width: 4),
@@ -374,16 +363,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                           'Convert to:',
                                                           style: TextStyle(
                                                             fontSize: 12,
-                                                            color: msg.senderId ==
-                                                                    currentUser
-                                                                        .id
-                                                                ? Colors
-                                                                    .lightBlue
-                                                                    .withOpacity(
-                                                                        0.7)
-                                                                : Colors.grey
-                                                                    .withOpacity(
-                                                                        0.7),
+                                                            color: isMe
+                                                                ? Colors.white70
+                                                                : Colors
+                                                                    .grey[600],
                                                           ),
                                                         ),
                                                         const SizedBox(
@@ -403,15 +386,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                                 style:
                                                                     TextStyle(
                                                                   fontSize: 12,
-                                                                  color: msg.senderId ==
-                                                                          currentUser
-                                                                              .id
+                                                                  color: isMe
                                                                       ? Colors
-                                                                          .lightBlue
-                                                                          .shade700
-                                                                      : Colors
-                                                                          .grey
-                                                                          .shade700,
+                                                                          .white
+                                                                      : Colors.grey[
+                                                                          800],
                                                                 ),
                                                               ),
                                                             );
@@ -425,6 +404,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                               });
                                                             }
                                                           },
+                                                          dropdownColor: isMe
+                                                              ? Colors.blue[700]
+                                                              : Colors.white,
                                                           underline:
                                                               const SizedBox(),
                                                           isDense: true,
@@ -434,12 +416,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                     const SizedBox(height: 4),
                                                     Builder(
                                                       builder: (context) {
+                                                        print(
+                                                            'Processing currency for message: ${msg.content}');
                                                         final currencies =
                                                             CurrencyHelper
                                                                 .extractCurrenciesFromText(
                                                                     msg.content);
-                                                        if (currencies.isEmpty)
+                                                        print(
+                                                            'Extracted currencies: $currencies');
+
+                                                        if (currencies
+                                                            .isEmpty) {
+                                                          print(
+                                                              'No currencies found in message');
                                                           return const SizedBox();
+                                                        }
 
                                                         final amount =
                                                             currencies.first[
@@ -456,6 +447,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                                     .currencies
                                                                     .first;
 
+                                                        print(
+                                                            'Converting $amount $fromCurrency to $toCurrency');
                                                         final convertedAmount =
                                                             CurrencyHelper
                                                                 .convertCurrency(
@@ -463,6 +456,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                           fromCurrency,
                                                           toCurrency,
                                                         );
+                                                        print(
+                                                            'Converted amount: $convertedAmount');
 
                                                         return Text(
                                                           CurrencyHelper
@@ -473,14 +468,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                             fontSize: 14,
                                                             fontWeight:
                                                                 FontWeight.w500,
-                                                            color: msg.senderId ==
-                                                                    currentUser
-                                                                        .id
-                                                                ? Colors
-                                                                    .lightBlue
-                                                                    .shade700
-                                                                : Colors.grey
-                                                                    .shade700,
+                                                            color: isMe
+                                                                ? Colors.white
+                                                                : Colors
+                                                                    .grey[800],
                                                           ),
                                                         );
                                                       },

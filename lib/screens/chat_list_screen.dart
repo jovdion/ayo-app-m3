@@ -100,19 +100,29 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
-      final position = await Geolocator.getCurrentPosition();
+      print('Getting current location...');
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+      print('Location obtained: ${position.latitude}, ${position.longitude}');
+
       setState(() => _currentPosition = position);
       await _updateCurrentUserAddress();
       await _updateUserLocation(position);
+
+      // Reload users after updating location
+      await _loadUsers();
+
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
+      print('Error getting location: $e');
       setState(() {
         _locationError = 'Error getting location: $e';
         _isLoading = false;
       });
-      print('Error getting location: $e');
     }
   }
 
@@ -146,10 +156,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   Future<void> _updateUserLocation(Position position) async {
     try {
+      print('Updating user location in backend...');
       await _userService.updateLocation(
         position.latitude,
         position.longitude,
       );
+      print('Location updated successfully');
     } catch (e) {
       print('Error updating user location: $e');
     }
@@ -157,7 +169,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   Future<void> _loadUsers() async {
     try {
+      print('Loading users list...');
       final users = await _userService.getUsers();
+      print('Users loaded: ${users.length}');
+      print(
+          'Users data: ${users.map((u) => '${u.username}: lat=${u.latitude}, lng=${u.longitude}').join(', ')}');
+
       setState(() {
         _users = users
             .where((user) => user.id != _authService.currentUser?.id)
@@ -165,7 +182,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
       });
     } catch (e) {
       print('Error loading users: $e');
-      // Show error message to user if needed
     }
   }
 

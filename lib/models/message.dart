@@ -1,39 +1,40 @@
 class Message {
   final String id;
-  final String senderId;
-  final String receiverId;
+  final String? senderId;
+  final String? receiverId;
   final String content;
   final DateTime createdAt;
   final DateTime updatedAt;
 
   Message({
     required this.id,
-    required this.senderId,
-    required this.receiverId,
+    this.senderId,
+    this.receiverId,
     required this.content,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory Message.fromMap(Map<String, dynamic> map) {
+    print('Creating Message from map: $map');
     return Message(
       id: map['id'].toString(),
-      senderId: map['sender_id'].toString(),
-      receiverId: map['receiver_id'].toString(),
+      senderId: map['senderId']?.toString(),
+      receiverId: map['receiverId']?.toString(),
       content: map['content'] ?? map['text'] ?? '',
-      createdAt: DateTime.parse(map['created_at'] ?? map['createdAt']),
-      updatedAt: DateTime.parse(map['updated_at'] ?? map['updatedAt']),
+      createdAt: DateTime.parse(map['createdAt']),
+      updatedAt: DateTime.parse(map['updatedAt']),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'sender_id': senderId,
-      'receiver_id': receiverId,
+      'senderId': senderId,
+      'receiverId': receiverId,
       'content': content,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
