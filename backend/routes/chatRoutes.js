@@ -83,7 +83,10 @@ router.post('/send', verifyToken, async (req, res) => {
       });
     }
 
-    const timestamp = new Date().toISOString();
+    // Format timestamp for MySQL (YYYY-MM-DD HH:mm:ss)
+    const now = new Date();
+    const timestamp = now.toISOString().slice(0, 19).replace('T', ' ');
+    
     console.log('Inserting message with values:', {
       senderId: req.userId,
       receiverId,
@@ -101,8 +104,8 @@ router.post('/send', verifyToken, async (req, res) => {
       senderId: req.userId.toString(),
       receiverId: receiverId.toString(),
       content: content,
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt: now.toISOString(),  // Send back ISO format for frontend
+      updatedAt: now.toISOString(),  // Send back ISO format for frontend
     };
 
     console.log('Message saved successfully:', message);
