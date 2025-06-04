@@ -3,19 +3,13 @@ import 'package:intl/intl.dart';
 class CurrencyHelper {
   static final Map<String, double> _exchangeRates = {
     'IDR': 1.0,
-    'USD': 0.000064,
-    'EUR': 0.000059,
-    'GBP': 0.000051,
-    'JPY': 0.0095,
-    'AUD': 0.000098,
-    'KRW': 0.085,
-    'SGD': 0.000086,
-    'MYR': 0.00030,
-    'CNY': 0.00046,
-    'HKD': 0.00050,
-    'THB': 0.0023,
-    'PHP': 0.0036,
-    'VND': 0.0016,
+    'USD': 0.000061,
+    'EUR': 0.000054,
+    'JPY': 0.0088,
+    'KRW': 0.084,
+    'SGD': 0.000079,
+    'MYR': 0.00026,
+    'CNY': 0.00044,
   };
 
   // List of supported currencies for dropdown
@@ -25,22 +19,16 @@ class CurrencyHelper {
     'IDR': 'Rp',
     'USD': r'$',
     'EUR': '€',
-    'GBP': '£',
     'JPY': '¥',
-    'AUD': r'A$',
     'KRW': '₩',
     'SGD': r'S$',
     'MYR': 'RM',
     'CNY': '¥',
-    'HKD': r'HK$',
-    'THB': '฿',
-    'PHP': '₱',
-    'VND': '₫',
   };
 
   // Combined pattern for all currency formats
   static final RegExp _fullPattern = RegExp(
-    r'(?:(\$|Rp\.?|€|£|¥|A\$|₩|S\$|RM|HK\$|฿|₱|₫)\s*(\d+(?:\.\d{3})*(?:[,.]\d+)?)|(\d+(?:\.\d{3})*(?:[,.]\d+)?)\s*(IDR|USD|EUR|GBP|JPY|AUD|KRW|SGD|MYR|CNY|HKD|THB|PHP|VND))',
+    r'(?:(\$|Rp\.?|€|¥|S\$|RM)\s*(\d+(?:\.\d{3})*(?:[,.]\d+)?)|(\d+(?:\.\d{3})*(?:[,.]\d+)?)\s*(IDR|USD|EUR|JPY|KRW|SGD|MYR|CNY))',
     caseSensitive: false,
   );
 
@@ -108,16 +96,10 @@ class CurrencyHelper {
       r'$': 'USD',
       'RP': 'IDR',
       '€': 'EUR',
-      '£': 'GBP',
       '¥': 'JPY',
-      r'A$': 'AUD',
       '₩': 'KRW',
       r'S$': 'SGD',
       'RM': 'MYR',
-      r'HK$': 'HKD',
-      '฿': 'THB',
-      '₱': 'PHP',
-      '₫': 'VND',
     };
 
     // Try exact match first
@@ -176,8 +158,8 @@ class CurrencyHelper {
       return '$symbol $formatted';
     }
 
-    // For USD, EUR, GBP use 2 decimal places
-    if (['USD', 'EUR', 'GBP', 'AUD', 'SGD', 'HKD'].contains(currency)) {
+    // For USD, EUR use 2 decimal places
+    if (['USD', 'EUR', 'SGD'].contains(currency)) {
       final formatter = NumberFormat.currency(
         locale: 'en_US',
         symbol: symbol,
@@ -186,8 +168,8 @@ class CurrencyHelper {
       return formatter.format(amount).replaceFirst(symbol, '$symbol ');
     }
 
-    // For JPY, KRW, VND use 0 decimal places
-    if (['JPY', 'KRW', 'VND'].contains(currency)) {
+    // For JPY, KRW use 0 decimal places
+    if (['JPY', 'KRW'].contains(currency)) {
       final formatter = NumberFormat.currency(
         locale: 'en_US',
         symbol: symbol,

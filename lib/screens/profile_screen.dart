@@ -5,6 +5,7 @@ import '../utils/time_helper.dart';
 import 'chat_list_screen.dart';
 import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'developers_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -296,72 +297,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Timezone Settings
+                    // Developers Section
                     Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Timezone Settings',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      child: ListTile(
+                        leading: const Icon(Icons.code),
+                        title: const Text('Developers'),
+                        subtitle: const Text('Meet our development team'),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const DevelopersScreen(),
                             ),
-                            const SizedBox(height: 8),
-                            FutureBuilder<int>(
-                              future: TimeHelper.getTimezoneOffset(),
-                              builder: (context, snapshot) {
-                                final currentOffset = snapshot.data ?? 0;
-
-                                return Row(
-                                  children: [
-                                    Text(
-                                      'UTC${currentOffset >= 0 ? '+' : ''}$currentOffset',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    ElevatedButton(
-                                      onPressed: () async {
-                                        final TimeOfDay? time =
-                                            await showTimePicker(
-                                          context: context,
-                                          initialTime: TimeOfDay(
-                                            hour: currentOffset >= 0
-                                                ? currentOffset
-                                                : 0,
-                                            minute: 0,
-                                          ),
-                                          builder: (context, child) {
-                                            return MediaQuery(
-                                              data: MediaQuery.of(context)
-                                                  .copyWith(
-                                                alwaysUse24HourFormat: true,
-                                              ),
-                                              child: child!,
-                                            );
-                                          },
-                                        );
-
-                                        if (time != null) {
-                                          await TimeHelper.setTimezoneOffset(
-                                              time.hour);
-                                          setState(() {}); // Refresh UI
-                                        }
-                                      },
-                                      child: const Text('Change Timezone'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ],

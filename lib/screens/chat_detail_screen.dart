@@ -188,13 +188,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = _authService.currentUser;
-    if (currentUser == null) {
-      Navigator.pop(context);
-      return const SizedBox();
-    }
+    final currentUser = _authService.currentUser!;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: _isLoading
             ? const Text('Loading...')
@@ -477,7 +474,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.only(
+                    left: 12,
+                    right: 12,
+                    top: 12,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     boxShadow: [
@@ -493,6 +495,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       Expanded(
                         child: TextField(
                           controller: messageController,
+                          keyboardType: TextInputType.text,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (text) => sendMessage(text),
+                          autofocus: false,
                           decoration: InputDecoration(
                             hintText: "Type your message...",
                             contentPadding: const EdgeInsets.symmetric(
@@ -504,6 +510,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             ),
                             filled: true,
                             fillColor: Colors.grey[100],
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: const BorderSide(color: Colors.blue),
+                            ),
                           ),
                         ),
                       ),

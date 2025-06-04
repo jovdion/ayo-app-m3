@@ -97,6 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -111,17 +112,21 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(
-                      Icons.chat_bubble_outline,
-                      size: 100,
-                      color: Colors.blue,
+                    Image.asset(
+                      'assets/Logo_AYO.png',
+                      height: 180,
                     ),
                     const SizedBox(height: 32),
                     const Text(
@@ -136,11 +141,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      autofocus: false,
                       decoration: InputDecoration(
                         labelText: 'Email',
                         prefixIcon: const Icon(Icons.email),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.blue),
                         ),
                       ),
                       validator: (value) {
@@ -157,11 +172,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: true,
+                      keyboardType: TextInputType.visiblePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _login(),
                       decoration: InputDecoration(
                         labelText: 'Password',
                         prefixIcon: const Icon(Icons.lock),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.blue),
                         ),
                       ),
                       validator: (value) {
@@ -206,13 +232,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               'Login',
                               style: TextStyle(fontSize: 16),
                             ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        // TODO: Implement forgot password
-                      },
-                      child: const Text('Forgot Password?'),
                     ),
                     const SizedBox(height: 16),
                     TextButton(

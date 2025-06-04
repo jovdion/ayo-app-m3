@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/chat_list_screen.dart';
+import 'screens/developers_screen.dart';
 import 'services/auth_service.dart';
 
 void main() async {
@@ -26,6 +27,7 @@ class MyApp extends StatelessWidget {
         '/': (context) => const AuthWrapper(),
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const ChatListScreen(),
+        '/developers': (context) => const DevelopersScreen(),
       },
     );
   }

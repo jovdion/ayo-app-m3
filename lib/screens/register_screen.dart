@@ -19,12 +19,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _locationConsent = false;
 
   Future<void> _register() async {
     print('=== REGISTER ATTEMPT ===');
     print('Form validation starting...');
     if (!_formKey.currentState!.validate()) {
       print('Form validation failed');
+      return;
+    }
+    if (!_locationConsent) {
+      setState(() {
+        _errorMessage = 'Please accept location sharing to continue';
+      });
       return;
     }
     print('Form validation successful');
@@ -200,6 +207,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         }
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Location Sharing',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Your location will be shared with other users to enable distance calculation and compass features.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _locationConsent,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _locationConsent = value ?? false;
+                                    if (_locationConsent) {
+                                      _errorMessage = null;
+                                    }
+                                  });
+                                },
+                              ),
+                              const Expanded(
+                                child: Text(
+                                  'I agree to share my location with other users',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 16),
