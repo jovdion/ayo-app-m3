@@ -3,7 +3,10 @@ import 'screens/login_screen.dart';
 import 'screens/chat_list_screen.dart';
 import 'services/auth_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final authService = AuthService();
+  await authService.loadStoredAuth();
   runApp(const MyApp());
 }
 
@@ -34,9 +37,9 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = AuthService();
-    
-    return authService.isLoggedIn() 
-        ? const ChatListScreen() 
+
+    return authService.isLoggedIn()
+        ? const ChatListScreen()
         : const LoginScreen();
   }
 }

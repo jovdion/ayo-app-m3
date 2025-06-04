@@ -39,16 +39,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   bool _isLoading = true;
   bool _hasCompass = false;
   StreamSubscription<CompassEvent>? _compassSubscription;
-  final List<String> currencies = [
-    "IDR",
-    "USD",
-    "EUR",
-    "GBP",
-    "JPY",
-    "AUD",
-    "KRW",
-    "SGD"
-  ];
+  final List<String> currencies = CurrencyHelper.supportedCurrencies;
   final Map<int, String> selectedCurrencyPerMessage = {};
 
   @override
@@ -414,21 +405,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                       ],
                                                     ),
                                                     const SizedBox(height: 4),
-                                                    Builder(
-                                                      builder: (context) {
-                                                        print(
-                                                            'Processing currency for message: ${msg.content}');
+                                                    ValueListenableBuilder<
+                                                        String>(
+                                                      valueListenable:
+                                                          ValueNotifier<String>(
+                                                              selectedCurrencyPerMessage[
+                                                                      index] ??
+                                                                  currencies
+                                                                      .first),
+                                                      builder: (context,
+                                                          selectedCurrency, _) {
                                                         final currencies =
                                                             CurrencyHelper
                                                                 .extractCurrenciesFromText(
                                                                     msg.content);
-                                                        print(
-                                                            'Extracted currencies: $currencies');
 
                                                         if (currencies
                                                             .isEmpty) {
-                                                          print(
-                                                              'No currencies found in message');
                                                           return const SizedBox();
                                                         }
 
@@ -441,14 +434,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                                     'currency']
                                                                 as String;
                                                         final toCurrency =
-                                                            selectedCurrencyPerMessage[
-                                                                    index] ??
-                                                                this
-                                                                    .currencies
-                                                                    .first;
+                                                            selectedCurrency;
 
-                                                        print(
-                                                            'Converting $amount $fromCurrency to $toCurrency');
                                                         final convertedAmount =
                                                             CurrencyHelper
                                                                 .convertCurrency(
@@ -456,8 +443,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                           fromCurrency,
                                                           toCurrency,
                                                         );
-                                                        print(
-                                                            'Converted amount: $convertedAmount');
 
                                                         return Text(
                                                           CurrencyHelper

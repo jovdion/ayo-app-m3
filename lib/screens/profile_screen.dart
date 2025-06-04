@@ -67,9 +67,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      await _userService.updateProfile(
+      final updatedUser = await _userService.updateProfile(
         username: _usernameController.text,
         email: _emailController.text,
+        password: _passwordController.text.isNotEmpty
+            ? _passwordController.text
+            : null,
       );
 
       setState(() {
@@ -80,7 +83,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
+          const SnackBar(
+            content: Text('Profile updated successfully'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
@@ -88,16 +94,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = false;
         _errorMessage = e.toString();
       });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_errorMessage ?? 'Failed to update profile'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  void _logout() {
-    _authService.logout();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+  void _logout() async {
+    setState(() => _isLoading = true);
+    await _authService.logout();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   Future<void> _loadUserData() async {

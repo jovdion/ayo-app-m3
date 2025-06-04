@@ -174,9 +174,9 @@ class UserService {
   }
 
   Future<User> updateProfile({
-    String? username,
-    String? email,
-    String? fcmToken,
+    required String username,
+    required String email,
+    String? password,
   }) async {
     try {
       final currentUser = _authService.currentUser;
@@ -186,22 +186,19 @@ class UserService {
       }
 
       print('Updating profile for user ${currentUser.id}');
-
-      final endpoint = ApiConfig.getEndpointWithId(
-        ApiConfig.updateProfileEndpoint,
-        currentUser.id,
-      );
-      print('Update profile URL: ${ApiConfig.baseUrl}$endpoint');
+      print('Using token: $token');
+      print(
+          'Using endpoint: ${ApiConfig.baseUrl}${ApiConfig.updateProfileEndpoint}');
 
       final Map<String, dynamic> requestBody = {
-        if (username != null) 'username': username,
-        if (email != null) 'email': email,
-        if (fcmToken != null) 'fcm_token': fcmToken,
+        'username': username,
+        'email': email,
+        if (password != null && password.isNotEmpty) 'password': password,
       };
       print('Update profile request body: ${json.encode(requestBody)}');
 
       final response = await http.put(
-        Uri.parse('${ApiConfig.baseUrl}$endpoint'),
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.updateProfileEndpoint}'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -215,13 +212,24 @@ class UserService {
 
       if (response.statusCode == 200) {
         final userData = json.decode(response.body);
-        return User.fromMap(userData);
+        // Create user directly from response data since it's not wrapped in a 'user' object
+        final updatedUser = User.fromMap(userData);
+
+        // Update the current user in memory
+        _authService.updateCurrentUser(updatedUser);
+
+        // Update stored user data
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user', json.encode(updatedUser.toMap()));
+        print('Updated user profile in memory and storage');
+
+        return updatedUser;
       } else {
         final errorMessage = _parseErrorMessage(response.body);
-        throw Exception('Failed to update profile: $errorMessage');
+        throw Exception('Profile update failed: $errorMessage');
       }
     } catch (e) {
-      print('Error updating profile: $e');
+      print('Error in updateProfile: $e');
       rethrow;
     }
   }
