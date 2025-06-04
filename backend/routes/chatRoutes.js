@@ -32,17 +32,18 @@ router.get('/messages/:otherUserId', verifyToken, async (req, res) => {
       `SELECT * FROM messages 
        WHERE (sender_id = ? AND receiver_id = ?) 
        OR (sender_id = ? AND receiver_id = ?)
-       ORDER BY timestamp ASC`,
+       ORDER BY created_at ASC`,
       [req.userId, req.params.otherUserId, req.params.otherUserId, req.userId]
     );
     
     // Transform the messages to match the client model
     const transformedMessages = messages.map(msg => ({
-      id: msg.id,
-      senderId: msg.sender_id,
-      receiverId: msg.receiver_id,
-      text: msg.text,
-      timestamp: msg.timestamp,
+      id: msg.id.toString(),
+      senderId: msg.sender_id.toString(),
+      receiverId: msg.receiver_id.toString(),
+      content: msg.content,
+      createdAt: msg.created_at,
+      updatedAt: msg.updated_at,
     }));
     
     res.json(transformedMessages);
@@ -58,29 +59,53 @@ router.get('/messages/:otherUserId', verifyToken, async (req, res) => {
 // Send a message
 router.post('/send', verifyToken, async (req, res) => {
   try {
-    const { receiverId, text } = req.body;
-    console.log('Sending message:', { senderId: req.userId, receiverId, text });
-
-    if (!text || !receiverId) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    console.log('Received request body:', req.body);
+    const { receiverId, content } = req.body;
+    
+    // Detailed validation logging
+    console.log('Validation check:');
+    console.log('receiverId:', receiverId, typeof receiverId);
+    console.log('content:', content, typeof content);
+    
+    if (!content) {
+      console.log('Content is missing or empty');
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        detail: 'Content is required' 
+      });
+    }
+    
+    if (!receiverId) {
+      console.log('ReceiverId is missing or empty');
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        detail: 'ReceiverId is required'
+      });
     }
 
-    const messageId = uuidv4();
     const timestamp = new Date().toISOString();
+    console.log('Inserting message with values:', {
+      senderId: req.userId,
+      receiverId,
+      content,
+      timestamp
+    });
 
-    await db.execute(
-      'INSERT INTO messages (id, sender_id, receiver_id, text, timestamp) VALUES (?, ?, ?, ?, ?)',
-      [messageId, req.userId, receiverId, text, timestamp]
+    const [result] = await db.execute(
+      'INSERT INTO messages (sender_id, receiver_id, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, receiverId, content, timestamp, timestamp]
     );
 
     const message = {
-      id: messageId,
-      senderId: req.userId,
-      receiverId,
-      text,
-      timestamp,
+      id: result.insertId.toString(),
+      senderId: req.userId.toString(),
+      receiverId: receiverId.toString(),
+      content: content,
+      createdAt: timestamp,
+      updatedAt: timestamp,
     };
 
+    console.log('Message saved successfully:', message);
     res.status(201).json(message);
   } catch (error) {
     console.error('Error sending message:', error);

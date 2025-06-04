@@ -20,13 +20,17 @@ class Message {
       id: map['id']?.toString() ?? '',
       senderId: map['sender_id']?.toString() ?? '',
       receiverId: map['receiver_id']?.toString() ?? '',
-      content: map['content']?.toString() ?? '',
+      content: map['content']?.toString() ?? map['text']?.toString() ?? '',
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'].toString())
-          : DateTime.now(),
+          : map['timestamp'] != null
+              ? DateTime.parse(map['timestamp'].toString())
+              : DateTime.now(),
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'].toString())
-          : DateTime.now(),
+          : map['timestamp'] != null
+              ? DateTime.parse(map['timestamp'].toString())
+              : DateTime.now(),
     );
   }
 
@@ -35,7 +39,7 @@ class Message {
       'id': id,
       'sender_id': senderId,
       'receiver_id': receiverId,
-      'content': content,
+      'text': content,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
