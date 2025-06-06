@@ -60,18 +60,18 @@ router.get('/messages/:otherUserId', verifyToken, async (req, res) => {
 router.post('/send', verifyToken, async (req, res) => {
   try {
     console.log('Received request body:', req.body);
-    const { receiverId, content } = req.body;
+    const { receiverId, message } = req.body;
     
     // Detailed validation logging
     console.log('Validation check:');
     console.log('receiverId:', receiverId, typeof receiverId);
-    console.log('content:', content, typeof content);
+    console.log('message:', message, typeof message);
     
-    if (!content) {
-      console.log('Content is missing or empty');
+    if (!message) {
+      console.log('Message is missing or empty');
       return res.status(400).json({ 
         message: 'Missing required fields',
-        detail: 'Content is required' 
+        detail: 'Message is required'
       });
     }
     
@@ -90,26 +90,26 @@ router.post('/send', verifyToken, async (req, res) => {
     console.log('Inserting message with values:', {
       senderId: req.userId,
       receiverId,
-      content,
+      message,
       timestamp
     });
 
     const [result] = await db.execute(
       'INSERT INTO chats (sender_id, receiver_id, message, created_at) VALUES (?, ?, ?, ?)',
-      [req.userId, receiverId, content, timestamp]
+      [req.userId, receiverId, message, timestamp]
     );
 
-    const message = {
+    const messageResponse = {
       id: result.insertId.toString(),
       senderId: req.userId.toString(),
       receiverId: receiverId.toString(),
-      content: content,
+      content: message,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
 
-    console.log('Message saved successfully:', message);
-    res.status(201).json(message);
+    console.log('Message saved successfully:', messageResponse);
+    res.status(201).json(messageResponse);
   } catch (error) {
     console.error('Error sending message:', error);
     res.status(500).json({ 
