@@ -29,7 +29,7 @@ router.get('/messages/:otherUserId', verifyToken, async (req, res) => {
     console.log('Getting messages between users:', req.userId, req.params.otherUserId);
     
     const [messages] = await db.execute(
-      `SELECT * FROM messages 
+      `SELECT * FROM chats 
        WHERE (sender_id = ? AND receiver_id = ?) 
        OR (sender_id = ? AND receiver_id = ?)
        ORDER BY created_at ASC`,
@@ -41,9 +41,9 @@ router.get('/messages/:otherUserId', verifyToken, async (req, res) => {
       id: msg.id.toString(),
       senderId: msg.sender_id.toString(),
       receiverId: msg.receiver_id.toString(),
-      content: msg.content,
+      content: msg.message,
       createdAt: msg.created_at,
-      updatedAt: msg.updated_at,
+      updatedAt: msg.created_at, // Using created_at since there's no updated_at
     }));
     
     res.json(transformedMessages);
@@ -95,8 +95,8 @@ router.post('/send', verifyToken, async (req, res) => {
     });
 
     const [result] = await db.execute(
-      'INSERT INTO messages (sender_id, receiver_id, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, receiverId, content, timestamp, timestamp]
+      'INSERT INTO chats (sender_id, receiver_id, message, created_at) VALUES (?, ?, ?, ?)',
+      [req.userId, receiverId, content, timestamp]
     );
 
     const message = {
@@ -104,8 +104,8 @@ router.post('/send', verifyToken, async (req, res) => {
       senderId: req.userId.toString(),
       receiverId: receiverId.toString(),
       content: content,
-      createdAt: now.toISOString(),  // Send back ISO format for frontend
-      updatedAt: now.toISOString(),  // Send back ISO format for frontend
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
     };
 
     console.log('Message saved successfully:', message);
@@ -126,7 +126,7 @@ router.get('/history/:userId', auth, async (req, res) => {
     const currentUserId = req.user.id;
 
     const [messages] = await db.execute(
-      `SELECT * FROM messages 
+      `SELECT * FROM chats 
        WHERE (sender_id = ? AND receiver_id = ?)
        OR (sender_id = ? AND receiver_id = ?)
        ORDER BY created_at DESC
@@ -134,7 +134,17 @@ router.get('/history/:userId', auth, async (req, res) => {
       [currentUserId, userId, userId, currentUserId]
     );
 
-    res.json(messages);
+    // Transform messages to match client model
+    const transformedMessages = messages.map(msg => ({
+      id: msg.id.toString(),
+      senderId: msg.sender_id.toString(),
+      receiverId: msg.receiver_id.toString(),
+      content: msg.message,
+      createdAt: msg.created_at,
+      updatedAt: msg.created_at, // Using created_at since there's no updated_at
+    }));
+
+    res.json(transformedMessages);
   } catch (error) {
     console.error('Error fetching chat history:', error);
     res.status(500).json({ message: 'Error fetching chat history' });

@@ -23,11 +23,11 @@ async function cleanDatabase() {
     console.log('Reset all user locations');
 
     // Delete all messages
-    await connection.execute('DELETE FROM messages');
+    await connection.execute('DELETE FROM chats');
     console.log('Deleted all messages');
 
     // Reset auto increment
-    await connection.execute('ALTER TABLE messages AUTO_INCREMENT = 1');
+    await connection.execute('ALTER TABLE chats AUTO_INCREMENT = 1');
     console.log('Reset messages auto increment');
 
     await connection.end();

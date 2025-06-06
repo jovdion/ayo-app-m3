@@ -259,7 +259,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                               final isMe = msg.senderId?.toString() ==
                                   currentUser.id.toString();
                               final hasCurrencyInMessage =
-                                  CurrencyHelper.hasCurrency(msg.content);
+                                  CurrencyHelper.hasCurrency(msg.message);
 
                               return FutureBuilder<String>(
                                 future: formatTimestamp(msg.createdAt),
@@ -301,7 +301,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                               : CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              msg.content,
+                                              msg.message,
                                               style: TextStyle(
                                                 color: isMe
                                                     ? Colors.white
@@ -418,7 +418,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                                         final currencies =
                                                             CurrencyHelper
                                                                 .extractCurrenciesFromText(
-                                                                    msg.content);
+                                                                    msg.message);
 
                                                         if (currencies
                                                             .isEmpty) {

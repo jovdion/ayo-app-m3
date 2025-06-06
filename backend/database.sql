@@ -1,4 +1,5 @@
-CREATE DATABASE IF NOT EXISTS `ayo-chat-db`;
+DROP DATABASE IF EXISTS `ayo-chat-db`;
+CREATE DATABASE `ayo-chat-db`;
 USE `ayo-chat-db`;
 
 CREATE TABLE IF NOT EXISTS users (
@@ -16,12 +17,11 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE INDEX idx_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS messages (
+CREATE TABLE IF NOT EXISTS chats (
   id INT PRIMARY KEY AUTO_INCREMENT,
   sender_id INT NOT NULL,
   receiver_id INT NOT NULL,
   message TEXT NOT NULL,
-  is_read BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (sender_id) REFERENCES users(id),
   FOREIGN KEY (receiver_id) REFERENCES users(id),

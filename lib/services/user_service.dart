@@ -37,7 +37,7 @@ class UserService {
       if (token == null) throw Exception('No token available');
 
       final response = await http.get(
-        Uri.parse('$baseUrl/api/users'),
+        Uri.parse('$baseUrl${ApiConfig.getUsersEndpoint}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ class UserService {
       if (token == null) throw Exception('No token available');
 
       final response = await http.get(
-        Uri.parse('$baseUrl/api/users/profile/$userId'),
+        Uri.parse('$baseUrl${ApiConfig.getUserProfileEndpoint}/$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ class UserService {
       }
 
       final response = await http.put(
-        Uri.parse('$baseUrl/api/users/profile'),
+        Uri.parse('$baseUrl${ApiConfig.updateProfileEndpoint}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -125,10 +125,10 @@ class UserService {
       print('Updating location for user');
       print('New coordinates: $latitude, $longitude');
       print('Using token: $token');
-      print('Using endpoint: $baseUrl/api/users/location');
+      print('Using endpoint: $baseUrl${ApiConfig.updateLocationEndpoint}');
 
       final response = await http.put(
-        Uri.parse('$baseUrl/api/users/location'),
+        Uri.parse('$baseUrl${ApiConfig.updateLocationEndpoint}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -171,8 +171,9 @@ class UserService {
       final token = await _authService.getToken();
       if (token == null) throw Exception('No token available');
 
+      print('Loading messages for user: $userId');
       final response = await http.get(
-        Uri.parse('$baseUrl/api/messages/$userId'),
+        Uri.parse('$baseUrl${ApiConfig.getMessagesEndpoint}/$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -196,15 +197,20 @@ class UserService {
       final token = await _authService.getToken();
       if (token == null) throw Exception('No token available');
 
+      print('Sending message:');
+      print('Receiver ID: $receiverId');
+      print('Message: $content');
+      print('Current user ID: ${(await _authService.getCurrentUser())?.id}');
+
       final response = await http.post(
-        Uri.parse('$baseUrl/api/messages'),
+        Uri.parse('$baseUrl${ApiConfig.sendMessageEndpoint}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
         body: json.encode({
           'receiverId': receiverId,
-          'content': content,
+          'message': content,
         }),
       );
 
