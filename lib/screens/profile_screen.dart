@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import '../utils/time_helper.dart';
@@ -8,34 +9,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'developers_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({Key? key}) : super(key: key);
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _authService = AuthService();
-  final _userService = UserService();
   final _formKey = GlobalKey<FormState>();
+  final _authService = AuthService();
+  late final UserService _userService;
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   int _selectedIndex = 1; // Profile tab
   bool _isEditing = false;
   bool _isLoading = false;
   String? _errorMessage;
-
-  late TextEditingController _usernameController;
-  late TextEditingController _emailController;
-  late TextEditingController _passwordController;
+  User? _user;
   String _selectedTimezone = 'Asia/Jakarta';
 
   @override
   void initState() {
     super.initState();
-    final user = _authService.currentUser;
-    _usernameController = TextEditingController(text: user?.username);
-    _emailController = TextEditingController(text: user?.email);
-    _passwordController = TextEditingController();
-    _loadUserData();
+    _userService = UserService(_authService);
+    _loadUserProfile();
     _loadTimezone();
   }
 
@@ -59,16 +57,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _selectedIndex = index);
   }
 
-  Future<void> _updateProfile() async {
+  Future<void> _handleUpdateProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final updatedUser = await _userService.updateProfile(
+      final updatedUser = await _userService.updateUserProfile(
         username: _usernameController.text,
         email: _emailController.text,
         password: _passwordController.text.isNotEmpty
@@ -76,34 +71,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : null,
       );
 
-      setState(() {
-        _isEditing = false;
-        _isLoading = false;
-        _passwordController.clear(); // Clear password after successful update
-      });
+      if (!mounted) return;
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+
+      setState(() {
+        _user = updatedUser;
+        _passwordController.clear();
+      });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = e.toString();
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_errorMessage ?? 'Failed to update profile'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update profile: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -119,14 +103,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _loadUserData() async {
-    final user = _authService.currentUser;
-    if (user == null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+  Future<void> _loadUserProfile() async {
+    setState(() => _isLoading = true);
+    try {
+      final currentUser = await _authService.getCurrentUser();
+      if (currentUser != null) {
+        setState(() {
+          _user = currentUser;
+          _usernameController.text = currentUser.username;
+          _emailController.text = currentUser.email;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load profile: ${e.toString()}')),
       );
-      return;
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -240,7 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ElevatedButton(
-                        onPressed: _updateProfile,
+                        onPressed: _handleUpdateProfile,
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size.fromHeight(50),
                         ),

@@ -18,8 +18,6 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  final _authService = AuthService();
-  final _userService = UserService();
   Position? _currentPosition;
   String? _currentUserAddress;
   int _selectedIndex = 0;
@@ -31,10 +29,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
   static const double _maxDistance = 10.0; // Maximum distance in kilometers
   Timer? _locationUpdateTimer;
   Timer? _usersUpdateTimer;
+  final _authService = AuthService();
+  late final UserService _userService;
 
   @override
   void initState() {
     super.initState();
+    _userService = UserService(_authService);
     _initializeScreen();
   }
 

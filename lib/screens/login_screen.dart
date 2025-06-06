@@ -36,55 +36,31 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _login() async {
-    print('=== LOGIN ATTEMPT ===');
-    print('Form validation starting...');
-    if (!_formKey.currentState!.validate()) {
-      print('Form validation failed');
-      return;
-    }
-    print('Form validation successful');
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    print('Loading state set to true');
+    setState(() => _isLoading = true);
 
     try {
-      print('Attempting login with:');
-      print('Email: ${_emailController.text}');
-      print('Password length: ${_passwordController.text.length} characters');
-
       final user = await _authService.login(
-        _emailController.text,
-        _passwordController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
       );
-      print('Login successful');
-      print('User details: ${user.toMap()}');
 
-      if (mounted) {
-        print('Navigating to chat list screen');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ChatListScreen()),
-        );
-      }
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ChatListScreen()),
+      );
     } catch (e) {
-      print('Login error occurred: $e');
-      setState(() {
-        _errorMessage = e.toString();
-      });
-      print('Error message set to: $_errorMessage');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login failed: ${e.toString()}')),
+      );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        print('Loading state set to false');
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
-    print('=== LOGIN ATTEMPT COMPLETE ===');
   }
 
   @override
@@ -174,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       obscureText: true,
                       keyboardType: TextInputType.visiblePassword,
                       textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _login(),
+                      onFieldSubmitted: (_) => _handleLogin(),
                       decoration: InputDecoration(
                         labelText: 'Password',
                         prefixIcon: const Icon(Icons.lock),
@@ -213,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _login,
+                      onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(

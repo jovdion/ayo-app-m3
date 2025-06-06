@@ -1,45 +1,45 @@
 class Message {
-  final String id;
-  final String? senderId;
-  final String? receiverId;
+  final int id;
+  final int? senderId;
+  final int receiverId;
   final String content;
+  final bool isRead;
   final DateTime createdAt;
-  final DateTime updatedAt;
 
   Message({
     required this.id,
     this.senderId,
-    this.receiverId,
+    required this.receiverId,
     required this.content,
+    required this.isRead,
     required this.createdAt,
-    required this.updatedAt,
   });
 
   factory Message.fromMap(Map<String, dynamic> map) {
-    print('Creating Message from map: $map');
     return Message(
-      id: map['id'].toString(),
-      senderId: map['senderId']?.toString(),
-      receiverId: map['receiverId']?.toString(),
-      content: map['content'] ?? map['text'] ?? '',
-      createdAt: DateTime.parse(map['createdAt']),
-      updatedAt: DateTime.parse(map['updatedAt']),
+      id: map['id'],
+      senderId: map['sender_id'],
+      receiverId: map['receiver_id'],
+      content:
+          map['content'] ?? map['message'] ?? '', // Support both field names
+      isRead: map['is_read'] ?? false,
+      createdAt: DateTime.parse(map['created_at']),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'senderId': senderId,
-      'receiverId': receiverId,
+      'sender_id': senderId,
+      'receiver_id': receiverId,
       'content': content,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'is_read': isRead,
+      'created_at': createdAt.toIso8601String(),
     };
   }
 
   @override
   String toString() {
-    return 'Message(id: $id, senderId: $senderId, receiverId: $receiverId, content: $content)';
+    return 'Message(id: $id, senderId: $senderId, receiverId: $receiverId, content: $content, isRead: $isRead, createdAt: $createdAt)';
   }
 }

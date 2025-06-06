@@ -4,14 +4,13 @@ import '../models/user.dart';
 import '../config/api_config.dart';
 import 'auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/message.dart';
 
 class UserService {
-  static final UserService _instance = UserService._internal();
-  factory UserService() => _instance;
-  UserService._internal();
-
-  final AuthService _authService = AuthService();
   final String baseUrl = ApiConfig.baseUrl;
+  final AuthService _authService;
+
+  UserService(this._authService);
 
   String _parseErrorMessage(String responseBody) {
     try {
@@ -165,5 +164,58 @@ class UserService {
 
   Future<Map<String, double?>> getCachedLocation() async {
     return User.getLocationFromPrefs();
+  }
+
+  Future<List<Message>> getMessages(String userId) async {
+    try {
+      final token = await _authService.getToken();
+      if (token == null) throw Exception('No token available');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/messages/$userId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => Message.fromMap(json)).toList();
+      } else {
+        throw Exception('Failed to load messages: ${response.body}');
+      }
+    } catch (e) {
+      print('Error getting messages: $e');
+      rethrow;
+    }
+  }
+
+  Future<Message> sendMessage(String receiverId, String content) async {
+    try {
+      final token = await _authService.getToken();
+      if (token == null) throw Exception('No token available');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/messages'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'receiverId': receiverId,
+          'content': content,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        return Message.fromMap(json.decode(response.body));
+      } else {
+        throw Exception('Failed to send message: ${response.body}');
+      }
+    } catch (e) {
+      print('Error sending message: $e');
+      rethrow;
+    }
   }
 }

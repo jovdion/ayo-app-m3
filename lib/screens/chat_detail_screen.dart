@@ -13,47 +13,52 @@ import 'package:intl/intl.dart';
 import 'dart:async';
 
 class ChatDetailScreen extends StatefulWidget {
-  final String username;
   final String userId;
+  final String username;
 
   const ChatDetailScreen({
-    super.key,
-    required this.username,
+    Key? key,
     required this.userId,
-  });
+    required this.username,
+  }) : super(key: key);
 
   @override
   State<ChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final _authService = AuthService();
-  final _userService = UserService();
-  final _chatService = ChatService();
-  final messageController = TextEditingController();
+  late final UserService _userService;
+  User? _recipient;
+  List<Message> _messages = [];
+  bool _isLoading = true;
+  Timer? _messageUpdateTimer;
+  CompassEvent? _compassEvent;
+  StreamSubscription<CompassEvent>? _compassSubscription;
   Position? _currentPosition;
   double? _heading;
   double? distanceKm;
-  User? otherUser;
-  List<Message> messages = [];
-  bool _isLoading = true;
   bool _hasCompass = false;
-  StreamSubscription<CompassEvent>? _compassSubscription;
   final List<String> currencies = CurrencyHelper.supportedCurrencies;
   final Map<int, String> selectedCurrencyPerMessage = {};
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _userService = UserService(_authService);
+    _loadRecipientProfile();
     _loadMessages();
     _initializeCompass();
     _getCurrentLocation();
+    _startMessageUpdateTimer();
   }
 
   @override
   void dispose() {
-    messageController.dispose();
+    _messageController.dispose();
+    _scrollController.dispose();
     _compassSubscription?.cancel();
     super.dispose();
   }
@@ -72,27 +77,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  Future<void> _loadUserProfile() async {
+  Future<void> _loadRecipientProfile() async {
     try {
-      final user = await _userService.getUserProfile(widget.userId);
+      final user = await _userService.getUserProfile(int.parse(widget.userId));
       setState(() {
-        otherUser = user;
+        _recipient = user;
       });
     } catch (e) {
-      print('Error loading user profile: $e');
+      print('Error loading recipient profile: $e');
     }
   }
 
   Future<void> _loadMessages() async {
     try {
       print('Loading messages for user: ${widget.userId}');
-      final loadedMessages = await _chatService.getMessages(widget.userId);
+      final loadedMessages = await _userService.getMessages(widget.userId);
       print('Messages loaded: ${loadedMessages.length}');
       print(
           'Messages data: ${loadedMessages.map((m) => 'id=${m.id}, senderId=${m.senderId}, receiverId=${m.receiverId}').join('\n')}');
 
       setState(() {
-        messages = loadedMessages;
+        _messages = loadedMessages;
         _isLoading = false;
       });
     } catch (e) {
@@ -115,13 +120,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   void _updateDistance() {
     if (_currentPosition != null &&
-        otherUser?.latitude != null &&
-        otherUser?.longitude != null) {
+        _recipient?.latitude != null &&
+        _recipient?.longitude != null) {
       final distance = Geolocator.distanceBetween(
         _currentPosition!.latitude,
         _currentPosition!.longitude,
-        otherUser!.latitude!,
-        otherUser!.longitude!,
+        _recipient!.latitude!,
+        _recipient!.longitude!,
       );
       setState(() {
         distanceKm = distance / 1000;
@@ -131,15 +136,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   double _calculateBearing() {
     if (_currentPosition == null ||
-        otherUser?.latitude == null ||
-        otherUser?.longitude == null) {
+        _recipient?.latitude == null ||
+        _recipient?.longitude == null) {
       return 0;
     }
 
     final lat1 = _currentPosition!.latitude * math.pi / 180;
     final lon1 = _currentPosition!.longitude * math.pi / 180;
-    final lat2 = otherUser!.latitude! * math.pi / 180;
-    final lon2 = otherUser!.longitude! * math.pi / 180;
+    final lat2 = _recipient!.latitude! * math.pi / 180;
+    final lon2 = _recipient!.longitude! * math.pi / 180;
 
     final dLon = lon2 - lon1;
 
@@ -169,14 +174,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       print('Current user ID: ${_authService.currentUser?.id}');
 
       final message =
-          await _chatService.sendMessage(widget.userId, text.trim());
+          await _userService.sendMessage(widget.userId, text.trim());
       print('Message sent successfully:');
       print(
           'Message data: id=${message.id}, senderId=${message.senderId}, receiverId=${message.receiverId}');
 
       setState(() {
-        messages.add(message);
-        messageController.clear();
+        _messages.add(message);
+        _messageController.clear();
       });
     } catch (e) {
       print('Error sending message: $e');
@@ -184,6 +189,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         SnackBar(content: Text('Failed to send message: $e')),
       );
     }
+  }
+
+  void _startMessageUpdateTimer() {
+    _messageUpdateTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+      _loadMessages();
+    });
   }
 
   @override
@@ -230,7 +241,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 12),
                     padding: const EdgeInsets.only(top: 4),
-                    child: messages.isEmpty
+                    child: _messages.isEmpty
                         ? const Center(
                             child: Text(
                               'No messages yet.\nStart a conversation!',
@@ -242,9 +253,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             ),
                           )
                         : ListView.builder(
-                            itemCount: messages.length,
+                            itemCount: _messages.length,
                             itemBuilder: (context, index) {
-                              final msg = messages[index];
+                              final msg = _messages[index];
                               final isMe = msg.senderId?.toString() ==
                                   currentUser.id.toString();
                               final hasCurrencyInMessage =
@@ -486,7 +497,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     children: [
                       Expanded(
                         child: TextField(
-                          controller: messageController,
+                          controller: _messageController,
                           keyboardType: TextInputType.text,
                           textInputAction: TextInputAction.send,
                           onSubmitted: (text) => sendMessage(text),
@@ -516,7 +527,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       const SizedBox(width: 8),
                       IconButton(
                         icon: const Icon(Icons.send),
-                        onPressed: () => sendMessage(messageController.text),
+                        onPressed: () => sendMessage(_messageController.text),
                       ),
                     ],
                   ),

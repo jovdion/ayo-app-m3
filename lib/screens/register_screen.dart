@@ -21,64 +21,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _errorMessage;
   bool _locationConsent = false;
 
-  Future<void> _register() async {
-    print('=== REGISTER ATTEMPT ===');
-    print('Form validation starting...');
-    if (!_formKey.currentState!.validate()) {
-      print('Form validation failed');
-      return;
-    }
-    if (!_locationConsent) {
-      setState(() {
-        _errorMessage = 'Please accept location sharing to continue';
-      });
-      return;
-    }
-    print('Form validation successful');
+  Future<void> _handleRegister() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    print('Loading state set to true');
+    setState(() => _isLoading = true);
 
     try {
-      print('Attempting registration with:');
-      print('Username: ${_nameController.text}');
-      print('Email: ${_emailController.text}');
-      print('Password length: ${_passwordController.text.length} characters');
-
       final user = await _authService.register(
-        _nameController.text,
-        _emailController.text,
-        _passwordController.text,
+        username: _nameController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
       );
 
-      print('Registration successful');
-      print('User details: ${user.toMap()}');
+      if (!mounted) return;
 
-      if (mounted) {
-        print('Navigating to chat list screen');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ChatListScreen()),
-        );
-      }
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ChatListScreen()),
+      );
     } catch (e) {
-      print('Registration error occurred: $e');
-      setState(() {
-        _errorMessage = e.toString();
-      });
-      print('Error message set to: $_errorMessage');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Registration failed: ${e.toString()}')),
+      );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        print('Loading state set to false');
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
-    print('=== REGISTER ATTEMPT COMPLETE ===');
   }
 
   @override
@@ -270,7 +238,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _register,
+                      onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
