@@ -135,6 +135,7 @@ router.put('/profile', verifyToken, async (req, res) => {
 router.put('/location', verifyToken, async (req, res) => {
   try {
     const { latitude, longitude } = req.body;
+    console.log('Updating location for user:', req.userId, 'with coordinates:', { latitude, longitude });
 
     if (latitude === undefined || longitude === undefined) {
       return res.status(400).json({ message: 'Latitude and longitude are required' });
@@ -150,9 +151,11 @@ router.put('/location', verifyToken, async (req, res) => {
     );
 
     if (result.affectedRows === 0) {
+      console.error('No rows affected when updating location for user:', req.userId);
       return res.status(404).json({ message: 'User not found' });
     }
 
+    console.log('Location updated successfully for user:', req.userId);
     res.json({ 
       message: 'Location updated successfully',
       latitude,
@@ -160,8 +163,11 @@ router.put('/location', verifyToken, async (req, res) => {
       last_update: now
     });
   } catch (error) {
-    console.error('Error updating location:', error);
-    res.status(500).json({ message: 'Error updating location' });
+    console.error('Error updating location:', error.stack);
+    res.status(500).json({ 
+      message: 'Error updating location',
+      error: error.message 
+    });
   }
 });
 

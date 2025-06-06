@@ -8,6 +8,7 @@ import 'chat_detail_screen.dart';
 import 'compass_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
+import 'dart:async';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -28,142 +29,157 @@ class _ChatListScreenState extends State<ChatListScreen> {
   List<User> _users = [];
   TextEditingController _searchController = TextEditingController();
   static const double _maxDistance = 10.0; // Maximum distance in kilometers
+  Timer? _locationUpdateTimer;
+  Timer? _usersUpdateTimer;
 
   @override
   void initState() {
     super.initState();
-    _checkAuth();
-    _requestLocationPermission();
-    _loadUsersAndLocation();
+    _initializeScreen();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _locationUpdateTimer?.cancel();
+    _usersUpdateTimer?.cancel();
     super.dispose();
   }
 
-  void _checkAuth() {
-    print('Checking authentication in ChatListScreen');
-    if (!_authService.isLoggedIn()) {
-      print('No user logged in, redirecting to login screen');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+  Future<void> _initializeScreen() async {
+    await _loadCachedLocation();
+    await _getCurrentLocation();
+    await _loadUsers();
+    _startPeriodicUpdates();
+  }
+
+  Future<void> _loadCachedLocation() async {
+    try {
+      final cachedLocation = await _userService.getCachedLocation();
+      if (cachedLocation['latitude'] != null &&
+          cachedLocation['longitude'] != null) {
+        _currentPosition = Position(
+          latitude: cachedLocation['latitude']!,
+          longitude: cachedLocation['longitude']!,
+          timestamp: DateTime.now(),
+          accuracy: 0,
+          altitude: 0,
+          altitudeAccuracy: 0,
+          heading: 0,
+          headingAccuracy: 0,
+          speed: 0,
+          speedAccuracy: 0,
         );
-      });
-    } else {
-      print('User is logged in: ${_authService.currentUser?.toMap()}');
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error loading cached location: $e');
     }
   }
 
-  Future<void> _requestLocationPermission() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
+  Future<void> _getCurrentLocation() async {
     try {
-      // Test if location services are enabled.
-      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() {
-          _locationError =
-              'Layanan lokasi tidak aktif. Mohon aktifkan GPS anda.';
-          _isLoading = false;
-        });
-        return;
+        return Future.error('Location services are disabled.');
       }
 
-      permission = await Geolocator.checkPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          setState(() {
-            _locationError =
-                'Izin lokasi ditolak. Mohon berikan izin lokasi untuk menggunakan fitur ini.';
-            _isLoading = false;
-          });
-          return;
+          return Future.error('Location permissions are denied');
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          _locationError =
-              'Izin lokasi ditolak permanen. Mohon ubah pengaturan di device anda.';
-          _isLoading = false;
-        });
-        return;
+        return Future.error('Location permissions are permanently denied');
       }
 
-      // When we reach here, permissions are granted
-      _loadUsersAndLocation();
-    } catch (e) {
-      setState(() {
-        _locationError = 'Terjadi kesalahan saat meminta izin lokasi: $e';
-        _isLoading = false;
-      });
-    }
-  }
+      final position = await Geolocator.getCurrentPosition();
+      setState(() => _currentPosition = position);
 
-  Future<void> _loadUsersAndLocation() async {
-    setState(() {
-      _isLoading = true;
-      _locationError = null;
-    });
-
-    try {
-      // Get current position with high accuracy
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 20),
-      );
-
-      // Get address from coordinates
-      final addresses = await placemarkFromCoordinates(
+      // Update location on server and in cache
+      await _userService.updateLocation(
         position.latitude,
         position.longitude,
       );
-
-      if (addresses.isNotEmpty) {
-        final place = addresses.first;
-        final address =
-            '${place.street}, ${place.subLocality}, ${place.locality}';
-
-        setState(() {
-          _currentPosition = position;
-          _currentUserAddress = address;
-        });
-
-        // Update user's location in backend
-        await _userService.updateLocation(
-            position.latitude, position.longitude);
-
-        // Load users after successfully getting location
-        await _loadUsers();
-      }
     } catch (e) {
-      setState(() {
-        _locationError = 'Gagal mendapatkan lokasi: ${e.toString()}';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      print('Error getting current location: $e');
     }
   }
 
+  void _startPeriodicUpdates() {
+    // Update location every 5 minutes
+    _locationUpdateTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      _getCurrentLocation();
+    });
+
+    // Update users list every 30 seconds
+    _usersUpdateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _loadUsers();
+    });
+  }
+
   Future<void> _loadUsers() async {
+    if (!mounted) return;
+
     try {
       final users = await _userService.getUsers();
-      setState(() {
-        _users = users;
-      });
+      if (mounted) {
+        setState(() {
+          _users = users;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _locationError = 'Gagal memuat daftar user: ${e.toString()}';
-      });
+      print('Error loading users: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  bool _isUserNearby(User user) {
+    if (_currentPosition == null) return false;
+    if (user.latitude == null || user.longitude == null) return false;
+
+    final distance = Geolocator.distanceBetween(
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
+      user.latitude!,
+      user.longitude!,
+    );
+
+    return distance <= 1000; // 1 kilometer radius
+  }
+
+  List<User> _sortUsersByDistance() {
+    if (_currentPosition == null) return _users;
+
+    final usersWithLocation = _users
+        .where((user) => user.latitude != null && user.longitude != null)
+        .toList();
+
+    usersWithLocation.sort((a, b) {
+      final distanceA = Geolocator.distanceBetween(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        a.latitude!,
+        a.longitude!,
+      );
+
+      final distanceB = Geolocator.distanceBetween(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        b.latitude!,
+        b.longitude!,
+      );
+
+      return distanceA.compareTo(distanceB);
+    });
+
+    return usersWithLocation;
   }
 
   List<User> _getFilteredUsers() {
@@ -238,6 +254,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
           userName: user.username,
           targetLatitude: user.latitude!,
           targetLongitude: user.longitude!,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToChat(User user) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatDetailScreen(
+          username: user.username,
+          userId: user.id.toString(),
         ),
       ),
     );
@@ -321,7 +349,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 ),
                 if (_locationError != null)
                   TextButton(
-                    onPressed: _requestLocationPermission,
+                    onPressed: _getCurrentLocation,
                     child: const Text('COBA LAGI'),
                   ),
               ],
@@ -403,7 +431,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         ),
                       )
                     : RefreshIndicator(
-                        onRefresh: _loadUsersAndLocation,
+                        onRefresh: _getCurrentLocation,
                         child: ListView.builder(
                           itemCount: filteredUsers.length,
                           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -445,17 +473,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.chat),
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => ChatDetailScreen(
-                                              username: user.username,
-                                              userId: user.id,
-                                            ),
-                                          ),
-                                        );
-                                      },
+                                      onPressed: () => _navigateToChat(user),
                                       tooltip: 'Mulai chat',
                                     ),
                                   ],

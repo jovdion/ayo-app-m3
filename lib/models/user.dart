@@ -1,13 +1,13 @@
 import 'dart:math' as math;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class User {
-  final String id;
+  final int id;
   final String username;
   final String email;
   final double? latitude;
   final double? longitude;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
+  final DateTime? lastLocationUpdate;
 
   User({
     required this.id,
@@ -15,53 +15,54 @@ class User {
     required this.email,
     this.latitude,
     this.longitude,
-    this.createdAt,
-    this.updatedAt,
+    this.lastLocationUpdate,
   });
 
   factory User.fromMap(Map<String, dynamic> map) {
-    print('Creating User from map: $map'); // Debug log
-
-    // Handle latitude
     double? lat;
-    if (map['latitude'] != null) {
-      try {
-        lat = double.parse(map['latitude'].toString());
-        print('Parsed latitude: $lat');
-      } catch (e) {
-        print('Error parsing latitude: $e');
-      }
-    } else {
-      print('Latitude is null in response');
-    }
-
-    // Handle longitude
     double? lng;
-    if (map['longitude'] != null) {
-      try {
-        lng = double.parse(map['longitude'].toString());
-        print('Parsed longitude: $lng');
-      } catch (e) {
-        print('Error parsing longitude: $e');
+    DateTime? locationUpdate;
+
+    try {
+      // Try to get location from encrypted data first
+      if (map['encrypted_location'] != null) {
+        // Location will be decrypted on the server side
+        lat = map['latitude'];
+        lng = map['longitude'];
+
+        if (map['last_location_update'] != null) {
+          locationUpdate = DateTime.parse(map['last_location_update']);
+        }
+      } else {
+        // Fallback to direct latitude/longitude
+        if (map['latitude'] != null) {
+          try {
+            lat = double.parse(map['latitude'].toString());
+          } catch (e) {
+            print('Error parsing latitude: $e');
+          }
+        }
+
+        if (map['longitude'] != null) {
+          try {
+            lng = double.parse(map['longitude'].toString());
+          } catch (e) {
+            print('Error parsing longitude: $e');
+          }
+        }
       }
-    } else {
-      print('Longitude is null in response');
+    } catch (e) {
+      print('Error processing location data: $e');
     }
 
-    final user = User(
-      id: map['id'].toString(),
+    return User(
+      id: map['id'],
       username: map['username'],
       email: map['email'],
       latitude: lat,
       longitude: lng,
-      createdAt:
-          map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
-      updatedAt:
-          map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
+      lastLocationUpdate: locationUpdate,
     );
-
-    print('Created user object: $user');
-    return user;
   }
 
   Map<String, dynamic> toMap() {
@@ -71,56 +72,58 @@ class User {
       'email': email,
       'latitude': latitude,
       'longitude': longitude,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
+      'last_location_update': lastLocationUpdate?.toIso8601String(),
     };
   }
 
-  double? getDistanceTo(User other) {
-    if (latitude == null ||
-        longitude == null ||
-        other.latitude == null ||
-        other.longitude == null) {
-      return null;
-    }
+  // Save current user's location to SharedPreferences
+  Future<void> saveLocationToPrefs() async {
+    if (latitude == null || longitude == null) return;
 
-    var p = math.pi / 180;
-    var a = 0.5 -
-        math.cos((other.latitude! - latitude!) * p) / 2 +
-        math.cos(latitude! * p) *
-            math.cos(other.latitude! * p) *
-            (1 - math.cos((other.longitude! - longitude!) * p)) /
-            2;
-    return 12742 * math.asin(math.sqrt(a)); // 2 * R; R = 6371 km
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('user_latitude', latitude!);
+    await prefs.setDouble('user_longitude', longitude!);
+    await prefs.setString(
+        'location_update_time',
+        lastLocationUpdate?.toIso8601String() ??
+            DateTime.now().toIso8601String());
   }
 
-  double? getBearingTo(User other) {
+  // Get current user's location from SharedPreferences
+  static Future<Map<String, double?>> getLocationFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'latitude': prefs.getDouble('user_latitude'),
+      'longitude': prefs.getDouble('user_longitude'),
+    };
+  }
+
+  // Calculate distance between two points using Haversine formula
+  double calculateDistance(User other) {
     if (latitude == null ||
         longitude == null ||
         other.latitude == null ||
         other.longitude == null) {
-      return null;
+      return double.infinity;
     }
 
+    const double earthRadius = 6371; // Earth's radius in kilometers
     var lat1 = latitude! * math.pi / 180;
     var lat2 = other.latitude! * math.pi / 180;
+    var dLat = (other.latitude! - latitude!) * math.pi / 180;
     var dLon = (other.longitude! - longitude!) * math.pi / 180;
 
-    var y = math.sin(dLon) * math.cos(lat2);
-    var x = math.cos(lat1) * math.sin(lat2) -
-        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
-    var bearing = math.atan2(y, x);
-
-    // Convert to degrees
-    bearing = bearing * 180 / math.pi;
-    // Normalize to 0-360
-    bearing = (bearing + 360) % 360;
-
-    return bearing;
+    var a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1) *
+            math.cos(lat2) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    var c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadius * c;
   }
 
   @override
   String toString() {
-    return 'User(id: $id, username: $username, email: $email, lat: $latitude, lng: $longitude)';
+    return 'User(id: $id, username: $username, email: $email, location: ($latitude, $longitude), lastUpdate: $lastLocationUpdate)';
   }
 }

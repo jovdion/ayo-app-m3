@@ -1,49 +1,69 @@
 const crypto = require('crypto');
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32); // 256 bit key
-const IV_LENGTH = 16; // For AES, this is always 16
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'ayo-chat-default-encryption-key-2024';
+const ALGORITHM = 'aes-256-cbc';
 
 function encrypt(text) {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(ENCRYPTION_KEY), iv);
-  
-  let encrypted = cipher.update(text);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  
-  return {
-    iv: iv.toString('hex'),
-    encrypted: Buffer.concat([encrypted, authTag]).toString('hex')
-  };
+  try {
+    const iv = crypto.randomBytes(16);
+    const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+    
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    
+    return {
+      encrypted,
+      iv: iv.toString('hex')
+    };
+  } catch (error) {
+    console.error('Encryption error:', error);
+    throw new Error('Failed to encrypt data');
+  }
 }
 
-function decrypt(encrypted, iv) {
-  const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(ENCRYPTION_KEY), Buffer.from(iv, 'hex'));
-  
-  const encryptedText = Buffer.from(encrypted, 'hex');
-  const authTag = encryptedText.slice(-16); // Last 16 bytes is auth tag
-  const data = encryptedText.slice(0, -16); // Everything except last 16 bytes is data
-  
-  decipher.setAuthTag(authTag);
-  
-  let decrypted = decipher.update(data);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
+function decrypt(encryptedText, ivHex) {
+  try {
+    const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+    const iv = Buffer.from(ivHex, 'hex');
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+    
+    let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted;
+  } catch (error) {
+    console.error('Decryption error:', error);
+    throw new Error('Failed to decrypt data');
+  }
 }
 
 function encryptLocation(latitude, longitude) {
-  const locationData = JSON.stringify({ latitude, longitude });
-  return encrypt(locationData);
+  try {
+    console.log('Encrypting location:', { latitude, longitude });
+    const locationData = JSON.stringify({ latitude, longitude });
+    const result = encrypt(locationData);
+    console.log('Location encrypted successfully');
+    return result;
+  } catch (error) {
+    console.error('Location encryption error:', error);
+    throw new Error('Failed to encrypt location data');
+  }
 }
 
 function decryptLocation(encryptedData, iv) {
-  if (!encryptedData || !iv) return null;
+  if (!encryptedData || !iv) {
+    console.log('No encrypted location data available');
+    return null;
+  }
   
   try {
     const decrypted = decrypt(encryptedData, iv);
-    return JSON.parse(decrypted);
+    const location = JSON.parse(decrypted);
+    console.log('Location decrypted successfully');
+    return location;
   } catch (error) {
-    console.error('Error decrypting location:', error);
+    console.error('Location decryption error:', error);
     return null;
   }
 }

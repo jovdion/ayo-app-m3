@@ -11,6 +11,7 @@ class UserService {
   UserService._internal();
 
   final AuthService _authService = AuthService();
+  final String baseUrl = ApiConfig.baseUrl;
 
   String _parseErrorMessage(String responseBody) {
     try {
@@ -33,40 +34,22 @@ class UserService {
 
   Future<List<User>> getUsers() async {
     try {
-      final currentUser = _authService.currentUser;
-      final token = _authService.token;
-      if (currentUser == null || token == null) {
-        throw Exception('No user logged in');
-      }
-
-      print('Getting users list');
-      print('Using token: $token');
-      print(
-          'Using endpoint: ${ApiConfig.baseUrl}${ApiConfig.getUsersEndpoint}');
+      final token = await _authService.getToken();
+      if (token == null) throw Exception('No token available');
 
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.getUsersEndpoint}'),
+        Uri.parse('$baseUrl/api/users'),
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
           'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
       );
 
-      print('Get users response status: ${response.statusCode}');
-      print('Get users response body: ${response.body}');
-
       if (response.statusCode == 200) {
-        final List<dynamic> usersData = json.decode(response.body);
-        return usersData
-            .where((data) => data['id'].toString() != currentUser.id)
-            .map((data) {
-          print('Processing user data: $data');
-          return User.fromMap(data);
-        }).toList();
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => User.fromMap(json)).toList();
       } else {
-        final errorMessage = _parseErrorMessage(response.body);
-        throw Exception('Failed to get users: $errorMessage');
+        throw Exception('Failed to load users: ${response.body}');
       }
     } catch (e) {
       print('Error getting users: $e');
@@ -74,38 +57,23 @@ class UserService {
     }
   }
 
-  Future<User> getUserProfile(String userId) async {
+  Future<User> getUserProfile(int userId) async {
     try {
-      final token = _authService.token;
-      if (token == null) {
-        throw Exception('No authentication token');
-      }
-
-      print('Getting user profile for ID: $userId');
-      final endpoint = ApiConfig.getEndpointWithId(
-        ApiConfig.getUserProfileEndpoint,
-        userId,
-      );
-      print('Get profile URL: ${ApiConfig.baseUrl}$endpoint');
+      final token = await _authService.getToken();
+      if (token == null) throw Exception('No token available');
 
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}$endpoint'),
+        Uri.parse('$baseUrl/api/users/profile/$userId'),
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
           'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
       );
 
-      print('Get profile response status: ${response.statusCode}');
-      print('Get profile response body: ${response.body}');
-
       if (response.statusCode == 200) {
-        final userData = json.decode(response.body);
-        return User.fromMap(userData);
+        return User.fromMap(json.decode(response.body));
       } else {
-        final errorMessage = _parseErrorMessage(response.body);
-        throw Exception('Failed to get user profile: $errorMessage');
+        throw Exception('Failed to load user profile: ${response.body}');
       }
     } catch (e) {
       print('Error getting user profile: $e');
@@ -113,59 +81,81 @@ class UserService {
     }
   }
 
-  Future<void> updateLocation(double latitude, double longitude) async {
+  Future<User> updateUserProfile({
+    required String username,
+    required String email,
+    String? password,
+  }) async {
     try {
-      final currentUser = _authService.currentUser;
-      final token = _authService.token;
-      if (currentUser == null || token == null) {
-        throw Exception('No user logged in');
+      final token = await _authService.getToken();
+      if (token == null) throw Exception('No token available');
+
+      final Map<String, dynamic> body = {
+        'username': username,
+        'email': email,
+      };
+      if (password != null && password.isNotEmpty) {
+        body['password'] = password;
       }
 
-      print('Updating location for user ${currentUser.id}');
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/users/profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 200) {
+        return User.fromMap(json.decode(response.body));
+      } else {
+        throw Exception('Failed to update profile: ${response.body}');
+      }
+    } catch (e) {
+      print('Error updating user profile: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateLocation(double latitude, double longitude) async {
+    try {
+      final token = await _authService.getToken();
+      if (token == null) throw Exception('No token available');
+
+      print('Updating location for user');
       print('New coordinates: $latitude, $longitude');
       print('Using token: $token');
-      print(
-          'Using endpoint: ${ApiConfig.baseUrl}${ApiConfig.updateLocationEndpoint}');
-
-      final Map<String, dynamic> requestBody = {
-        'latitude': latitude,
-        'longitude': longitude,
-      };
-      print('Update location request body: ${json.encode(requestBody)}');
+      print('Using endpoint: $baseUrl/api/users/location');
 
       final response = await http.put(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.updateLocationEndpoint}'),
+        Uri.parse('$baseUrl/api/users/location'),
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
           'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
-        body: json.encode(requestBody),
+        body: json.encode({
+          'latitude': latitude,
+          'longitude': longitude,
+        }),
       );
 
       print('Update location response status: ${response.statusCode}');
       print('Update location response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        // Update the current user's location in memory
-        final updatedUser = User(
-          id: currentUser.id,
-          username: currentUser.username,
-          email: currentUser.email,
+        // Save location to SharedPreferences for quick access
+        final user = User(
+          id: (await _authService.getCurrentUser())?.id ?? 0,
+          username: '', // These fields aren't needed for location caching
+          email: '',
           latitude: latitude,
           longitude: longitude,
-          createdAt: currentUser.createdAt,
-          updatedAt: DateTime.now(),
+          lastLocationUpdate: DateTime.now(),
         );
-        _authService.updateCurrentUser(updatedUser);
-
-        // Update stored user data
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user', json.encode(updatedUser.toMap()));
-        print('Updated user location in memory and storage');
+        await user.saveLocationToPrefs();
       } else {
-        final errorMessage = _parseErrorMessage(response.body);
-        throw Exception('Failed to update location: $errorMessage');
+        throw Exception('Failed to update location: ${response.body}');
       }
     } catch (e) {
       print('Error updating location: $e');
@@ -173,64 +163,7 @@ class UserService {
     }
   }
 
-  Future<User> updateProfile({
-    required String username,
-    required String email,
-    String? password,
-  }) async {
-    try {
-      final currentUser = _authService.currentUser;
-      final token = _authService.token;
-      if (currentUser == null || token == null) {
-        throw Exception('No user logged in');
-      }
-
-      print('Updating profile for user ${currentUser.id}');
-      print('Using token: $token');
-      print(
-          'Using endpoint: ${ApiConfig.baseUrl}${ApiConfig.updateProfileEndpoint}');
-
-      final Map<String, dynamic> requestBody = {
-        'username': username,
-        'email': email,
-        if (password != null && password.isNotEmpty) 'password': password,
-      };
-      print('Update profile request body: ${json.encode(requestBody)}');
-
-      final response = await http.put(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.updateProfileEndpoint}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode(requestBody),
-      );
-
-      print('Update profile response status: ${response.statusCode}');
-      print('Update profile response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final userData = json.decode(response.body);
-        // Create user directly from response data since it's not wrapped in a 'user' object
-        final updatedUser = User.fromMap(userData);
-
-        // Update the current user in memory
-        _authService.updateCurrentUser(updatedUser);
-
-        // Update stored user data
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user', json.encode(updatedUser.toMap()));
-        print('Updated user profile in memory and storage');
-
-        return updatedUser;
-      } else {
-        final errorMessage = _parseErrorMessage(response.body);
-        throw Exception('Profile update failed: $errorMessage');
-      }
-    } catch (e) {
-      print('Error in updateProfile: $e');
-      rethrow;
-    }
+  Future<Map<String, double?>> getCachedLocation() async {
+    return User.getLocationFromPrefs();
   }
 }

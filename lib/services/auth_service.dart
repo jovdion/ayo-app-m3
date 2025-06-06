@@ -16,6 +16,24 @@ class AuthService {
   User? get currentUser => _currentUser;
   String? get token => _token;
 
+  Future<String?> getToken() async {
+    if (_token != null) return _token;
+
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  Future<User?> getCurrentUser() async {
+    if (_currentUser != null) return _currentUser;
+
+    final prefs = await SharedPreferences.getInstance();
+    final userStr = prefs.getString('user');
+    if (userStr != null) {
+      return User.fromMap(json.decode(userStr));
+    }
+    return null;
+  }
+
   // Add method to update current user
   void updateCurrentUser(User user) {
     print('Updating current user: $user');
@@ -44,69 +62,15 @@ class AuthService {
     }
   }
 
-  Future<User> login(String email, String password) async {
+  Future<Map<String, dynamic>> register({
+    required String username,
+    required String email,
+    required String password,
+  }) async {
     try {
-      print('Attempting login with email: $email');
-      print('Login URL: ${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}');
-
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: json.encode({
-          'email': email,
-          'password': password,
-        }),
-      );
-
-      print('Login response status: ${response.statusCode}');
-      print('Login response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        print('Parsed response data: $data');
-
-        if (data['token'] == null) {
-          throw Exception('Invalid response format: missing token');
-        }
-        if (data['user'] == null) {
-          throw Exception('Invalid response format: missing user data');
-        }
-
-        _token = data['token'];
-        _currentUser = User.fromMap(data['user']);
-        print('Created user object: ${_currentUser?.toString()}');
-
-        // Store auth data
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', _token!);
-        await prefs.setString('user', json.encode(_currentUser!.toMap()));
-        print('Stored auth data in SharedPreferences');
-
-        return _currentUser!;
-      } else {
-        final errorMessage = _parseErrorMessage(response.body);
-        throw Exception('Login failed: $errorMessage');
-      }
-    } catch (e) {
-      print('Error in login: $e');
-      rethrow;
-    }
-  }
-
-  Future<User> register(String username, String email, String password) async {
-    try {
-      print('Attempting registration with email: $email');
-      print('Register URL: ${ApiConfig.baseUrl}${ApiConfig.registerEndpoint}');
-
-      final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.registerEndpoint}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        Uri.parse('${ApiConfig.baseUrl}/api/auth/register'),
+        headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'username': username,
           'email': email,
@@ -114,39 +78,70 @@ class AuthService {
         }),
       );
 
-      print('Registration response status: ${response.statusCode}');
-      print('Registration response body: ${response.body}');
-
       if (response.statusCode == 201) {
         final data = json.decode(response.body);
-        print('Parsed response data: $data');
-
-        if (data['token'] == null) {
-          throw Exception('Invalid response format: missing token');
-        }
-        if (data['user'] == null) {
-          throw Exception('Invalid response format: missing user data');
-        }
-
         _token = data['token'];
         _currentUser = User.fromMap(data['user']);
-        print('Created user object: ${_currentUser?.toString()}');
 
-        // Store auth data
+        // Save to SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', _token!);
         await prefs.setString('user', json.encode(_currentUser!.toMap()));
-        print('Stored auth data in SharedPreferences');
 
-        return _currentUser!;
+        return data;
       } else {
-        final errorMessage = _parseErrorMessage(response.body);
-        throw Exception('Registration failed: $errorMessage');
+        throw Exception('Registration failed: ${response.body}');
       }
     } catch (e) {
       print('Error in register: $e');
       rethrow;
     }
+  }
+
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': email,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        _token = data['token'];
+        _currentUser = User.fromMap(data['user']);
+
+        // Save to SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', _token!);
+        await prefs.setString('user', json.encode(_currentUser!.toMap()));
+
+        return data;
+      } else {
+        throw Exception('Login failed: ${response.body}');
+      }
+    } catch (e) {
+      print('Error in login: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> logout() async {
+    _token = null;
+    _currentUser = null;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('user');
+    await prefs.remove('user_latitude');
+    await prefs.remove('user_longitude');
+    await prefs.remove('location_update_time');
   }
 
   String _parseErrorMessage(String responseBody) {
@@ -168,19 +163,5 @@ class AuthService {
       }
     }
     return responseBody;
-  }
-
-  Future<void> logout() async {
-    _currentUser = null;
-    _token = null;
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('token');
-      await prefs.remove('user');
-      print('Cleared stored auth data');
-    } catch (e) {
-      print('Error clearing stored auth: $e');
-    }
   }
 }
