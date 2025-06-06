@@ -14,12 +14,12 @@ async function initializeDatabase() {
     console.log('Connected to MySQL server');
 
     // Create database if not exists
-    await connection.query('CREATE DATABASE IF NOT EXISTS ayo_chat_db');
+    await connection.query('CREATE DATABASE IF NOT EXISTS `ayo-chat-db`');
     console.log('Database created or already exists');
 
     // Use the database
-    await connection.query('USE ayo_chat_db');
-    console.log('Using ayo_chat_db');
+    await connection.query('USE `ayo-chat-db`');
+    console.log('Using ayo-chat-db');
 
     // Read and execute the SQL initialization file
     const sqlPath = path.join(__dirname, 'init.sql');

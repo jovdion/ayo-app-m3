@@ -15,7 +15,7 @@ async function setupDatabase() {
     console.log('Connected to MySQL server');
 
     // 2. Buat database jika belum ada
-    const dbName = process.env.DB_NAME || 'ayo_chat_db';
+    const dbName = process.env.DB_NAME || 'ayo-chat-db';
     await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
     console.log(`Database ${dbName} created or already exists`);
     await connection.end();
@@ -25,7 +25,7 @@ async function setupDatabase() {
       host: process.env.DB_HOST || '104.198.194.69',
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'ayo_chat_db',
+      database: process.env.DB_NAME || 'ayo-chat-db',
       multipleStatements: true,
     });
 

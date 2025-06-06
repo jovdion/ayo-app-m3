@@ -5,7 +5,7 @@ const dbConfig = {
   host: process.env.DB_HOST || '34.72.200.235',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'ayo_chat_db',
+  database: process.env.DB_NAME || 'ayo-chat-db',
 };
 
 async function cleanDatabase() {

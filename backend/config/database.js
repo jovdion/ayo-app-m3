@@ -8,7 +8,7 @@ const dbConfig = {
   host: (process.env.DB_HOST || '104.198.194.69').toLowerCase(),
   user: (process.env.DB_USER || 'root').toLowerCase(),
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'ayo_chat_db',
+  database: process.env.DB_NAME || 'ayo-chat-db',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS ayo_chat_db;
-USE ayo_chat_db;
+CREATE DATABASE IF NOT EXISTS `ayo-chat-db`;
+USE `ayo-chat-db`;
 
 CREATE TABLE IF NOT EXISTS users (
   id INT PRIMARY KEY AUTO_INCREMENT,
