@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const db = require('../config/database');
 const firebase = require('../config/firebase');
+const NotificationService = require('../services/notification');
 const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
 
@@ -107,6 +108,9 @@ router.post('/send', verifyToken, async (req, res) => {
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
+
+    // Send push notification
+    await NotificationService.sendMessageNotification(req.userId, receiverId, message);
 
     console.log('Message saved successfully:', messageResponse);
     res.status(201).json(messageResponse);

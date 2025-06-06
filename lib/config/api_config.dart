@@ -10,6 +10,7 @@ class ApiConfig {
   static const String getUserProfileEndpoint = '/api/users/profile';
   static const String updateProfileEndpoint = '/api/users/profile';
   static const String updateLocationEndpoint = '/api/users/location';
+  static const String updateFCMTokenEndpoint = '/api/users/fcm-token';
   // Message endpoints
   static const String sendMessageEndpoint = '/api/chat/send';
   static const String getMessagesEndpoint = '/api/chat/messages';

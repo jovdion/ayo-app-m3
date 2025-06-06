@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'screens/login_screen.dart';
 import 'screens/chat_list_screen.dart';
 import 'screens/developers_screen.dart';
+import 'services/notification_service.dart';
+import 'services/user_service.dart';
 import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
   final authService = AuthService();
-  await authService.loadStoredAuth();
+  final userService = UserService(authService);
+  final notificationService = NotificationService(userService);
+
+  // Initialize notifications and save FCM token
+  await notificationService.saveFCMToken();
+
   runApp(const MyApp());
 }
 

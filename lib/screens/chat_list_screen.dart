@@ -82,6 +82,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
+        setState(() {
+          _locationError = 'Layanan lokasi tidak aktif';
+        });
         return Future.error('Location services are disabled.');
       }
 
@@ -89,16 +92,50 @@ class _ChatListScreenState extends State<ChatListScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
+          setState(() {
+            _locationError = 'Izin lokasi ditolak';
+          });
           return Future.error('Location permissions are denied');
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _locationError = 'Izin lokasi ditolak secara permanen';
+        });
         return Future.error('Location permissions are permanently denied');
       }
 
+      setState(() => _locationError = null);
       final position = await Geolocator.getCurrentPosition();
-      setState(() => _currentPosition = position);
+
+      // Get address from coordinates
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks[0];
+          setState(() {
+            _currentUserAddress =
+                '${place.street}, ${place.subLocality}, ${place.locality}';
+            _currentPosition = position;
+          });
+        } else {
+          setState(() {
+            _currentUserAddress = '${position.latitude}, ${position.longitude}';
+            _currentPosition = position;
+          });
+        }
+      } catch (e) {
+        print('Error getting address: $e');
+        setState(() {
+          _currentUserAddress = '${position.latitude}, ${position.longitude}';
+          _currentPosition = position;
+        });
+      }
 
       // Update location on server and in cache
       await _userService.updateLocation(
@@ -107,6 +144,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
       );
     } catch (e) {
       print('Error getting current location: $e');
+      setState(() {
+        _locationError = 'Gagal mendapatkan lokasi: ${e.toString()}';
+      });
     }
   }
 

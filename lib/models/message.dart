@@ -16,24 +16,38 @@ class Message {
   });
 
   factory Message.fromMap(Map<String, dynamic> map) {
+    print('Creating Message from map: $map'); // Debug log
     return Message(
-      id: map['id'],
-      senderId: map['sender_id'],
-      receiverId: map['receiver_id'],
-      message: map['message'] ?? '',
-      isRead: map['is_read'] ?? false,
-      createdAt: DateTime.parse(map['created_at']),
+      id: map['id'] is String ? int.parse(map['id']) : map['id'],
+      senderId: _parseId(map['sender_id'] ?? map['senderId']),
+      receiverId: _parseId(map['receiver_id'] ?? map['receiverId'])!,
+      message: map['message'] ??
+          map['content'] ??
+          '', // Support both message and content
+      isRead: map['is_read'] ?? map['isRead'] ?? false,
+      createdAt: map['created_at'] is String
+          ? DateTime.parse(map['created_at'])
+          : (map['createdAt'] is String
+              ? DateTime.parse(map['createdAt'])
+              : (map['created_at'] as DateTime? ?? DateTime.now())),
     );
+  }
+
+  static int? _parseId(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.parse(value);
+    return null;
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'sender_id': senderId,
-      'receiver_id': receiverId,
+      'senderId': senderId,
+      'receiverId': receiverId,
       'message': message,
-      'is_read': isRead,
-      'created_at': createdAt.toIso8601String(),
+      'isRead': isRead,
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 

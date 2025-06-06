@@ -173,7 +173,8 @@ class UserService {
 
       print('Loading messages for user: $userId');
       final response = await http.get(
-        Uri.parse('$baseUrl${ApiConfig.getMessagesEndpoint}/$userId'),
+        Uri.parse(
+            '$baseUrl${ApiConfig.getMessagesEndpoint}/${int.parse(userId)}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -182,6 +183,7 @@ class UserService {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
+        print('Raw message data: $data'); // Debug log
         return data.map((json) => Message.fromMap(json)).toList();
       } else {
         throw Exception('Failed to load messages: ${response.body}');
@@ -197,8 +199,10 @@ class UserService {
       final token = await _authService.getToken();
       if (token == null) throw Exception('No token available');
 
+      final parsedReceiverId = int.parse(receiverId);
+
       print('Sending message:');
-      print('Receiver ID: $receiverId');
+      print('Receiver ID: $parsedReceiverId (parsed from: $receiverId)');
       print('Message: $content');
       print('Current user ID: ${(await _authService.getCurrentUser())?.id}');
 
@@ -209,18 +213,45 @@ class UserService {
           'Content-Type': 'application/json',
         },
         body: json.encode({
-          'receiverId': receiverId,
+          'receiverId': parsedReceiverId,
           'message': content,
         }),
       );
 
       if (response.statusCode == 201) {
-        return Message.fromMap(json.decode(response.body));
+        final responseData = json.decode(response.body);
+        print('Response data: $responseData'); // Debug log
+        return Message.fromMap(responseData);
       } else {
         throw Exception('Failed to send message: ${response.body}');
       }
     } catch (e) {
       print('Error sending message: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateFCMToken(String token) async {
+    try {
+      final authToken = await _authService.getToken();
+      if (authToken == null) throw Exception('No token available');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl${ApiConfig.updateFCMTokenEndpoint}'),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'fcm_token': token,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update FCM token: ${response.body}');
+      }
+    } catch (e) {
+      print('Error updating FCM token: $e');
       rethrow;
     }
   }
