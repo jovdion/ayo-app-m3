@@ -10,7 +10,7 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     const [users] = await connection.execute(
-      'SELECT id, username, email, latitude, longitude, created_at, updated_at FROM users'
+      'SELECT id, username, email, latitude, longitude FROM users'
     );
     await connection.end();
     res.json(users);
@@ -25,7 +25,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     const [users] = await connection.execute(
-      'SELECT id, username, email, latitude, longitude, created_at, updated_at FROM users WHERE id = ?',
+      'SELECT id, username, email, latitude, longitude FROM users WHERE id = ?',
       [req.params.id]
     );
     await connection.end();

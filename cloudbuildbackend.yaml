@@ -3,10 +3,23 @@ options:
 
 steps:
   # Install dependencies
-  - name: 'node:16'
+  - name: 'node:18'
     entrypoint: npm
     args: ['install']
     dir: 'backend'
+
+  # Generate encryption key if not exists
+  - name: 'node:18'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if [ -z "$$ENCRYPTION_KEY" ]; then
+          echo "Generating new encryption key..."
+          node backend/scripts/generate-key.js > encryption_key.txt
+          export ENCRYPTION_KEY=$$(cat encryption_key.txt)
+        fi
+    secretEnv: ['ENCRYPTION_KEY']
 
   # Run tests (if you have any)
   # - name: 'node:16'
@@ -37,8 +50,23 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--set-env-vars'
-      - 'DB_HOST=${_DB_HOST},DB_USER=${_DB_USER},DB_PASSWORD=${_DB_PASSWORD},DB_NAME=${_DB_NAME},JWT_SECRET=${_JWT_SECRET},FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID},FIREBASE_PRIVATE_KEY=${_FIREBASE_PRIVATE_KEY},FIREBASE_CLIENT_EMAIL=${_FIREBASE_CLIENT_EMAIL}'
+      - >-
+        DB_HOST=${_DB_HOST},
+        DB_USER=${_DB_USER},
+        DB_PASSWORD=${_DB_PASSWORD},
+        DB_NAME=${_DB_NAME},
+        JWT_SECRET=${_JWT_SECRET},
+        ENCRYPTION_KEY=${_ENCRYPTION_KEY},
+        NODE_ENV=production,
+        FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID},
+        FIREBASE_PRIVATE_KEY=${_FIREBASE_PRIVATE_KEY},
+        FIREBASE_CLIENT_EMAIL=${_FIREBASE_CLIENT_EMAIL}
 
 images:
   - 'gcr.io/$PROJECT_ID/ayo-app-backend'
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/encryption-key/versions/latest
+      env: 'ENCRYPTION_KEY'
 

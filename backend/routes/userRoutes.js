@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../config/database');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { encryptLocation, decryptLocation } = require('../utils/encryption');
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
@@ -13,7 +14,7 @@ const verifyToken = (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'ayo_app_secret_key_2024');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.id;
     next();
   } catch (error) {
@@ -24,21 +25,28 @@ const verifyToken = (req, res, next) => {
 // Get all users except the current user
 router.get('/', verifyToken, async (req, res) => {
   try {
-    console.log('Getting users list for user ID:', req.userId);
-    
     const [users] = await db.execute(
-      'SELECT id, username, email, latitude, longitude FROM users WHERE id != ?',
+      'SELECT id, username, email, encrypted_location, location_iv, last_location_update FROM users WHERE id != ?',
       [req.userId]
     );
     
-    console.log('Found users:', users.length);
-    res.json(users);
+    // Decrypt locations for each user
+    const usersWithLocation = users.map(user => {
+      const location = decryptLocation(user.encrypted_location, user.location_iv);
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        latitude: location?.latitude || null,
+        longitude: location?.longitude || null,
+        last_location_update: user.last_location_update
+      };
+    });
+
+    res.json(usersWithLocation);
   } catch (error) {
     console.error('Error getting users:', error);
-    res.status(500).json({ 
-      message: 'Error getting users',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Error getting users' });
   }
 });
 
@@ -126,16 +134,19 @@ router.put('/profile', verifyToken, async (req, res) => {
 // Update user location
 router.put('/location', verifyToken, async (req, res) => {
   try {
-    console.log('Updating location for user ID:', req.userId);
     const { latitude, longitude } = req.body;
 
     if (latitude === undefined || longitude === undefined) {
       return res.status(400).json({ message: 'Latitude and longitude are required' });
     }
 
+    // Encrypt location data
+    const { encrypted, iv } = encryptLocation(latitude, longitude);
+    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
     const [result] = await db.execute(
-      'UPDATE users SET latitude = ?, longitude = ? WHERE id = ?',
-      [latitude, longitude, req.userId]
+      'UPDATE users SET encrypted_location = ?, location_iv = ?, last_location_update = ? WHERE id = ?',
+      [encrypted, iv, now, req.userId]
     );
 
     if (result.affectedRows === 0) {
@@ -145,14 +156,12 @@ router.put('/location', verifyToken, async (req, res) => {
     res.json({ 
       message: 'Location updated successfully',
       latitude,
-      longitude
+      longitude,
+      last_update: now
     });
   } catch (error) {
     console.error('Error updating location:', error);
-    res.status(500).json({ 
-      message: 'Error updating location',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Error updating location' });
   }
 });
 

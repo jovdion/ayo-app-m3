@@ -27,14 +27,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
   String _searchQuery = '';
   List<User> _users = [];
   TextEditingController _searchController = TextEditingController();
+  static const double _maxDistance = 10.0; // Maximum distance in kilometers
 
   @override
   void initState() {
     super.initState();
     _checkAuth();
-    _loadUsers();
     _requestLocationPermission();
-    _setDefaultLocation();
+    _loadUsersAndLocation();
   }
 
   @override
@@ -59,22 +59,28 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   Future<void> _requestLocationPermission() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      // Test if location services are enabled.
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() {
-          _locationError = 'Location services are disabled.';
+          _locationError =
+              'Layanan lokasi tidak aktif. Mohon aktifkan GPS anda.';
           _isLoading = false;
         });
         return;
       }
 
-      LocationPermission permission = await Geolocator.checkPermission();
+      permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           setState(() {
-            _locationError = 'Location permissions are denied.';
+            _locationError =
+                'Izin lokasi ditolak. Mohon berikan izin lokasi untuk menggunakan fitur ini.';
             _isLoading = false;
           });
           return;
@@ -83,143 +89,121 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
       if (permission == LocationPermission.deniedForever) {
         setState(() {
-          _locationError = 'Location permissions are permanently denied.';
+          _locationError =
+              'Izin lokasi ditolak permanen. Mohon ubah pengaturan di device anda.';
           _isLoading = false;
         });
         return;
       }
 
-      await _getCurrentLocation();
+      // When we reach here, permissions are granted
+      _loadUsersAndLocation();
     } catch (e) {
       setState(() {
-        _locationError = 'Error accessing location: $e';
+        _locationError = 'Terjadi kesalahan saat meminta izin lokasi: $e';
         _isLoading = false;
       });
     }
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<void> _loadUsersAndLocation() async {
+    setState(() {
+      _isLoading = true;
+      _locationError = null;
+    });
+
     try {
-      print('Getting current location...');
+      // Get current position with high accuracy
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        timeLimit: const Duration(seconds: 20),
       );
-      print('Location obtained: ${position.latitude}, ${position.longitude}');
 
-      setState(() => _currentPosition = position);
-      await _updateCurrentUserAddress();
-      await _updateUserLocation(position);
-
-      // Reload users after updating location
-      await _loadUsers();
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error getting location: $e');
-      setState(() {
-        _locationError = 'Error getting location: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _updateCurrentUserAddress() async {
-    if (_currentPosition == null) return;
-
-    try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
-      );
-      if (placemarks.isNotEmpty) {
-        final place = placemarks.first;
-        setState(() {
-          _currentUserAddress = [
-            if (place.street?.isNotEmpty == true) place.street,
-            if (place.subLocality?.isNotEmpty == true) place.subLocality,
-            if (place.locality?.isNotEmpty == true) place.locality,
-            if (place.subAdministrativeArea?.isNotEmpty == true)
-              place.subAdministrativeArea,
-          ].where((e) => e != null).join(', ');
-        });
-      }
-    } catch (e) {
-      print('Error getting current user address: $e');
-      setState(() {
-        _currentUserAddress = 'Address not available';
-      });
-    }
-  }
-
-  Future<void> _updateUserLocation(Position position) async {
-    try {
-      print('Updating user location in backend...');
-      await _userService.updateLocation(
+      // Get address from coordinates
+      final addresses = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
-      print('Location updated successfully');
+
+      if (addresses.isNotEmpty) {
+        final place = addresses.first;
+        final address =
+            '${place.street}, ${place.subLocality}, ${place.locality}';
+
+        setState(() {
+          _currentPosition = position;
+          _currentUserAddress = address;
+        });
+
+        // Update user's location in backend
+        await _userService.updateLocation(
+            position.latitude, position.longitude);
+
+        // Load users after successfully getting location
+        await _loadUsers();
+      }
     } catch (e) {
-      print('Error updating user location: $e');
+      setState(() {
+        _locationError = 'Gagal mendapatkan lokasi: ${e.toString()}';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _loadUsers() async {
     try {
-      print('Loading users list...');
       final users = await _userService.getUsers();
-      print('Users loaded: ${users.length}');
-      print(
-          'Users data: ${users.map((u) => '${u.username}: lat=${u.latitude}, lng=${u.longitude}').join(', ')}');
-
       setState(() {
-        _users = users
-            .where((user) => user.id != _authService.currentUser?.id)
-            .toList();
+        _users = users;
       });
     } catch (e) {
-      print('Error loading users: $e');
-    }
-  }
-
-  Future<void> _setDefaultLocation() async {
-    try {
-      // Default location (Jakarta)
-      double defaultLat = -6.2088;
-      double defaultLong = 106.8456;
-
-      // Try to get actual location first
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (serviceEnabled) {
-        try {
-          Position position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high,
-            timeLimit: const Duration(seconds: 5),
-          );
-          defaultLat = position.latitude;
-          defaultLong = position.longitude;
-        } catch (e) {
-          print('Using default location due to error: $e');
-        }
-      }
-
-      // Update location in backend
-      await _userService.updateLocation(defaultLat, defaultLong);
-    } catch (e) {
-      print('Error setting default location: $e');
+      setState(() {
+        _locationError = 'Gagal memuat daftar user: ${e.toString()}';
+      });
     }
   }
 
   List<User> _getFilteredUsers() {
-    if (_searchQuery.isEmpty) return _users;
+    if (_currentPosition == null) return [];
 
-    return _users
-        .where((user) =>
-            user.username.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
+    return _users.where((user) {
+      if (user.latitude == null || user.longitude == null) return false;
+
+      // Calculate distance
+      final distance = Geolocator.distanceBetween(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+            user.latitude!,
+            user.longitude!,
+          ) /
+          1000; // Convert to kilometers
+
+      // Filter by distance and search query
+      final matchesSearch =
+          user.username.toLowerCase().contains(_searchQuery.toLowerCase());
+      final isWithinRange = distance <= _maxDistance;
+
+      return matchesSearch && isWithinRange;
+    }).toList()
+      ..sort((a, b) {
+        // Sort by distance
+        final distanceA = Geolocator.distanceBetween(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+          a.latitude!,
+          a.longitude!,
+        );
+        final distanceB = Geolocator.distanceBetween(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+          b.latitude!,
+          b.longitude!,
+        );
+        return distanceA.compareTo(distanceB);
+      });
   }
 
   void _onItemTapped(int index) {
@@ -263,25 +247,17 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Widget build(BuildContext context) {
     final currentUser = _authService.currentUser;
     if (currentUser == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Chats')),
-        body: const Center(child: Text('Please login to view chats')),
+      return const Scaffold(
+        body: Center(child: Text('Silakan login terlebih dahulu')),
       );
     }
 
-    final users = _getFilteredUsers();
+    final filteredUsers = _getFilteredUsers();
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(
-          currentUser.username,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: Text(currentUser.username),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -295,228 +271,203 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _locationError != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.location_off,
-                          size: 48,
-                          color: Colors.red,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _locationError!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _requestLocationPermission,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _getCurrentLocation,
+      body: Column(
+        children: [
+          // Location Status Card
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color:
+                  _locationError != null ? Colors.red[100] : Colors.blue[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _locationError != null
+                      ? Icons.error_outline
+                      : Icons.location_on,
+                  color: _locationError != null ? Colors.red : Colors.blue,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            // Location Card
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red[800],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Lokasi kamu sekarang',
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          _currentUserAddress ??
-                                              'Mendapatkan lokasi...',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.refresh,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                    onPressed: _getCurrentLocation,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    tooltip: 'Refresh lokasi',
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            // Search Box
-                            Container(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: TextField(
-                                controller: _searchController,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _searchQuery = value;
-                                  });
-                                },
-                                decoration: const InputDecoration(
-                                  hintText: 'Cari user...',
-                                  border: InputBorder.none,
-                                  icon: Icon(Icons.search),
-                                ),
-                              ),
-                            ),
-                          ],
+                      Text(
+                        _locationError != null ? 'Error Lokasi' : 'Lokasi Anda',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _locationError != null
+                              ? Colors.red
+                              : Colors.blue[900],
                         ),
                       ),
-                      Expanded(
-                        child: users.isEmpty
-                            ? Center(
-                                child: Text(
-                                  _searchQuery.isEmpty
-                                      ? 'Tidak ada user'
-                                      : 'Tidak ada user yang ditemukan',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              )
-                            : ListView.builder(
-                                itemCount: users.length,
-                                itemBuilder: (context, index) {
-                                  final user = users[index];
-
-                                  return Card(
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 4,
-                                    ),
-                                    child: ListTile(
-                                      leading: CircleAvatar(
-                                        backgroundColor: Colors.blue.shade100,
-                                        child: Text(
-                                          user.username[0].toUpperCase(),
-                                          style: const TextStyle(
-                                            color: Colors.blue,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      title: Text(
-                                        user.username,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      subtitle: _currentPosition != null &&
-                                              user.latitude != null &&
-                                              user.longitude != null
-                                          ? Text(
-                                              '${(Geolocator.distanceBetween(
-                                                    _currentPosition!.latitude,
-                                                    _currentPosition!.longitude,
-                                                    user.latitude!,
-                                                    user.longitude!,
-                                                  ) / 1000).toStringAsFixed(1)} km',
-                                              style: TextStyle(
-                                                color: Colors.grey[600],
-                                              ),
-                                            )
-                                          : Text(
-                                              'Calculating distance...',
-                                              style: TextStyle(
-                                                color: Colors.grey[400],
-                                                fontStyle: FontStyle.italic,
-                                              ),
-                                            ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.explore),
-                                            onPressed: () => _openCompass(user),
-                                            tooltip: 'Open compass',
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.chat),
-                                            onPressed: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      ChatDetailScreen(
-                                                    username: user.username,
-                                                    userId: user.id,
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                            tooltip: 'Start chat',
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _locationError ??
+                            _currentUserAddress ??
+                            'Mendapatkan lokasi...',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: _locationError != null
+                              ? Colors.red[700]
+                              : Colors.blue[700],
+                        ),
                       ),
                     ],
                   ),
                 ),
+                if (_locationError != null)
+                  TextButton(
+                    onPressed: _requestLocationPermission,
+                    child: const Text('COBA LAGI'),
+                  ),
+              ],
+            ),
+          ),
+
+          // Search Box
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+                decoration: const InputDecoration(
+                  hintText: 'Cari user...',
+                  border: InputBorder.none,
+                  icon: Icon(Icons.search),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Radius Info
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Menampilkan user dalam radius ${_maxDistance.toStringAsFixed(1)} km',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // User List
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filteredUsers.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.people_outline,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Tidak ada user dalam radius ${_maxDistance.toStringAsFixed(1)} km',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadUsersAndLocation,
+                        child: ListView.builder(
+                          itemCount: filteredUsers.length,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemBuilder: (context, index) {
+                            final user = filteredUsers[index];
+                            if (user.latitude == null ||
+                                user.longitude == null ||
+                                _currentPosition == null) {
+                              return const SizedBox();
+                            }
+
+                            final distance = Geolocator.distanceBetween(
+                              _currentPosition!.latitude,
+                              _currentPosition!.longitude,
+                              user.latitude!,
+                              user.longitude!,
+                            );
+
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 4,
+                              ),
+                              child: ListTile(
+                                title: Text(user.username),
+                                subtitle: Text(
+                                  '${(distance / 1000).toStringAsFixed(1)} km',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.explore),
+                                      onPressed: () => _openCompass(user),
+                                      tooltip: 'Lihat arah',
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.chat),
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => ChatDetailScreen(
+                                              username: user.username,
+                                              userId: user.id,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      tooltip: 'Mulai chat',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,

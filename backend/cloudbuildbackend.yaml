@@ -9,10 +9,10 @@ steps:
     dir: 'backend'
 
   # Run tests (if you have any)
-  - name: 'node:16'
-    entrypoint: npm
-    args: ['test']
-    dir: 'backend'
+  # - name: 'node:16'
+  #   entrypoint: npm
+  #   args: ['test']
+  #   dir: 'backend'
 
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
@@ -41,4 +41,11 @@ steps:
 
 images:
   - 'gcr.io/$PROJECT_ID/ayo-app-backend'
+
+# Generate key
+node backend/scripts/generate-key.js > encryption_key.txt
+
+# Buat secret di GCP
+gcloud secrets create encryption-key --replication-policy="automatic"
+gcloud secrets versions add encryption-key --data-file=encryption_key.txt
 

@@ -199,14 +199,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(widget.username),
-                  if (otherUser != null)
-                    Text(
-                      otherUser!.email,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.normal,
-                      ),
-                    ),
                 ],
               ),
         elevation: 0,

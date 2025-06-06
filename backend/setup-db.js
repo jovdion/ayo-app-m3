@@ -7,28 +7,29 @@ async function setupDatabase() {
   try {
     // 1. Koneksi tanpa database
     const connection = await mysql.createConnection({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
+      host: process.env.DB_HOST || '104.198.194.69',
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
     });
 
     console.log('Connected to MySQL server');
 
     // 2. Buat database jika belum ada
-    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${process.env.DB_NAME}\`;`);
-    console.log(`Database ${process.env.DB_NAME} created or already exists`);
+    const dbName = process.env.DB_NAME || 'ayo_chat_db';
+    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
+    console.log(`Database ${dbName} created or already exists`);
     await connection.end();
 
     // 3. Koneksi ulang dengan database
     const db = await mysql.createConnection({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
+      host: process.env.DB_HOST || '104.198.194.69',
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'ayo_chat_db',
       multipleStatements: true,
     });
 
-    console.log(`Connected to database ${process.env.DB_NAME}`);
+    console.log(`Connected to database ${dbName}`);
 
     // 4. Baca dan jalankan file database.sql
     const sqlPath = path.join(__dirname, 'database.sql');

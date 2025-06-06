@@ -12,7 +12,12 @@ class CurrencyHelper {
     'CNY': 0.00044,
   };
 
-  // List of supported currencies for dropdown
+ 
+
+
+
+
+ 
   static List<String> get supportedCurrencies => _exchangeRates.keys.toList();
 
   static final Map<String, String> _currencySymbols = {
