@@ -1,7 +1,7 @@
 class ApiConfig {
   // Production backend URL
   static const String baseUrl =
-      'https://ayo-app-backend-913201672104.asia-southeast2.run.app';
+      'https://ayo-app-backend-870764645625.asia-southeast2.run.app';
   // Auth endpoints
   static const String loginEndpoint = '/api/auth/login';
   static const String registerEndpoint = '/api/auth/register';
