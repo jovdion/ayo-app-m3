@@ -1,11 +1,5 @@
-const admin = require('firebase-admin');
+const { messaging } = require('../config/firebase');
 const db = require('../config/database');
-
-// Initialize Firebase Admin with service account
-const serviceAccount = require('../config/firebase-service-account.json');
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
 
 class NotificationService {
   static async sendMessageNotification(senderId, receiverId, message) {
@@ -45,7 +39,7 @@ class NotificationService {
         token: rows[0].fcm_token,
       };
 
-      const response = await admin.messaging().send(notification);
+      const response = await messaging.send(notification);
       console.log('Successfully sent notification:', response);
     } catch (error) {
       console.error('Error sending notification:', error);
@@ -90,7 +84,7 @@ class NotificationService {
         tokens: tokens,
       };
 
-      const response = await admin.messaging().sendMulticast(notification);
+      const response = await messaging.sendMulticast(notification);
       console.log('Successfully sent notifications:', response);
     } catch (error) {
       console.error('Error sending notifications:', error);
